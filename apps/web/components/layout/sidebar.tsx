@@ -11,6 +11,7 @@ import {
   LogOut,
   Zap,
   Film,
+  User2,
 } from "lucide-react";
 import { cn } from "@videoforge/ui";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/generate", label: "Generate", icon: Wand2 },
   { href: "/gallery", label: "Gallery", icon: Image },
+  { href: "/characters", label: "Characters", icon: User2 },
   { href: "/pricing", label: "Pricing", icon: DollarSign },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

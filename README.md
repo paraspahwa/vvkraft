@@ -449,22 +449,23 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 
 ---
 
+### ✅ Recently Completed
+
+| Item | What Was Built |
+|---|---|
+| **BullMQ worker process** | `apps/web/worker/video-generation.ts` — consumes jobs, calls `fal.queue.submit()` per model, stores `falRequestId`, falls back to credit refund on submission failure. Entry point: `apps/web/worker/index.ts`. Start with `npm run worker`. |
+| **Video playback (web)** | `GenerationStatusCard` embeds an inline `<video>` element with mute toggle when status = `completed`. `VideoCard` already had hover-to-play. |
+| **Video playback (mobile)** | Full-screen `expo-av` video player at `apps/mobile/app/video/[id].tsx` with play/pause, progress bar, and download. Gallery now navigates to this screen on tap. |
+| **Character image upload** | `character.getUploadUrl` tRPC procedure returns a presigned R2 URL. `CreateCharacterDialog` uploads directly to R2 via `PUT`, then creates the character record with the public URL. |
+| **Character management UI (web)** | `/characters` page with card grid, `CreateCharacterDialog` (image file picker + upload + form), `CharacterCard` with hover-delete confirm. Added to sidebar nav. |
+| **Mobile billing screen** | `apps/mobile/app/(tabs)/billing.tsx` — shows plan, credits, plan features, upgrade options and credit packs (all linking to web pricing page via `Linking.openURL`). Added as 4th tab. |
+
 ### 🚧 Pending / Not Yet Implemented
 
-#### 🔴 Critical
+#### 🟡 Still Missing
 
 | Item | Details |
 |---|---|
-| **BullMQ worker process** | `lib/queue.ts` defines the queues and `enqueueVideoGeneration()` adds jobs, but there is no worker file that actually **consumes** jobs, calls the Fal.ai API (`fal.subscribe()`), and processes results. Without this, video generation won't work end-to-end. |
-| **Video playback** | Web `VideoCard` and mobile gallery display thumbnails/status but have no video `<video>` player or `expo-av` playback. Users can't watch their generated videos in-app. |
-
-#### 🟡 Important
-
-| Item | Details |
-|---|---|
-| **Reference image / character image upload** | `getPresignedUploadUrl()` in `lib/r2.ts` exists but there is no upload UI — no file picker, no presigned URL flow, no progress indicator. Characters can't be created without a working upload. |
-| **Character management UI (web)** | The character tRPC router is complete but there is no web page/component to list, create, or delete characters. |
-| **Mobile billing screen** | The Profile screen has placeholder menu items ("Billing & Subscription", "Account Settings") that don't navigate anywhere. No mobile billing flow exists. |
 | **Google / social OAuth** | Only email/password auth is implemented. Firebase supports Google, Apple, GitHub, etc. — none are wired up. |
 
 #### 🟢 Nice-to-Have / Future
