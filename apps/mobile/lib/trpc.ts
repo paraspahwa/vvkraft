@@ -1,5 +1,7 @@
 import { createTRPCReact } from "@trpc/react-query";
-import type { AppRouter } from "@videoforge/web/server/routers/_app";
+// AppRouter is imported as a type-only from the web app's dedicated export point.
+// No server-side (Node.js-only) code is pulled in — TypeScript erases type imports at runtime.
+import type { AppRouter } from "@videoforge/web/types/api";
 
 // Re-export types for use across the mobile app
 export type { AppRouter };

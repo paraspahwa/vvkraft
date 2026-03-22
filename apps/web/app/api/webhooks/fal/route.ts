@@ -3,9 +3,15 @@ import { updateGeneration, getGenerationById, addCredits } from "@/lib/db";
 import { uploadFromUrl, buildVideoKey } from "@/lib/r2";
 
 export async function POST(req: NextRequest) {
-  // Verify the webhook secret to prevent spoofed requests
+  // Verify the webhook secret to prevent spoofed requests.
+  // FAL_WEBHOOK_SECRET must always be configured in production.
+  const expectedSecret = process.env.FAL_WEBHOOK_SECRET;
+  if (!expectedSecret) {
+    console.error("FAL_WEBHOOK_SECRET is not configured — rejecting all webhook calls");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
   const secret = req.headers.get("x-fal-webhook-secret");
-  if (process.env.FAL_WEBHOOK_SECRET && secret !== process.env.FAL_WEBHOOK_SECRET) {
+  if (secret !== expectedSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

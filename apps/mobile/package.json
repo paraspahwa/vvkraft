@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@videoforge/shared": "*",
+    "@videoforge/web": "*",
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "^1.23.0",
     "@react-navigation/native": "^6.1.0",

@@ -12,8 +12,14 @@ function fromTimestamp(ts: Timestamp): Date {
   return ts.toDate();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function docToUser(data: any, id: string): User {
+type FirestoreDocData = Record<string, unknown> & {
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  processingStartedAt?: Timestamp;
+  completedAt?: Timestamp;
+};
+
+function docToUser(data: FirestoreDocData, id: string): User {
   return {
     ...data,
     id,
@@ -22,8 +28,7 @@ function docToUser(data: any, id: string): User {
   } as User;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function docToGeneration(data: any, id: string): Generation {
+function docToGeneration(data: FirestoreDocData, id: string): Generation {
   return {
     ...data,
     id,

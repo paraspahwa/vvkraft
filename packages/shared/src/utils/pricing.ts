@@ -6,7 +6,7 @@ export const CREDIT_VALUE_USD = 0.10;
 // Cost per second by model (USD)
 const MODEL_COST_PER_SECOND: Record<VideoModel, number> = {
   "fal-ai/longcat-video/distilled/text-to-video/480p": 0.005,
-  "fal-ai/wan/v2.2-a14b/image-to-video": 0.0025, // ~$0.025 for 10s
+  "fal-ai/wan/v2.2-a14b/image-to-video": 0.0025, // $0.0025/sec (e.g. $0.025 for 10s)
   "fal-ai/kling-video/v2.6/pro/text-to-video": 0.07,
   "fal-ai/kling-video/v3/pro/text-to-video": 0.224,
 };
@@ -168,3 +168,13 @@ export function validateGenerationForTier(
 
   return { valid: true };
 }
+
+/**
+ * Queue priority values per tier (lower = higher priority in BullMQ)
+ */
+export const TIER_QUEUE_PRIORITY: Record<SubscriptionTier, number> = {
+  studio: 1,
+  pro: 3,
+  creator: 5,
+  free: 10,
+};

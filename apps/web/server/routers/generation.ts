@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
-import { generationRequestSchema } from "@videoforge/shared";
+import { generationRequestSchema, TIER_QUEUE_PRIORITY } from "@videoforge/shared";
 import { createGeneration, getGenerationById, getUserGenerations, updateGeneration } from "@/lib/db";
 import { routeModel } from "@/lib/model-router";
 import { enqueueVideoGeneration } from "@/lib/queue";
@@ -65,8 +65,7 @@ export const generationRouter = router({
         `Video generation: ${input.prompt.slice(0, 50)}`
       );
 
-      // Enqueue the job (priority: studio=1, pro=3, creator=5, free=10)
-      const priorityMap = { free: 10, creator: 5, pro: 3, studio: 1 };
+      // Enqueue the job using the shared priority constants (lower = higher priority in BullMQ)
       await enqueueVideoGeneration(
         {
           generationId: generation.id,
@@ -81,7 +80,7 @@ export const generationRouter = router({
           motionStrength: input.motionStrength,
           referenceImageUrl: input.referenceImageUrl,
         },
-        priorityMap[user.tier]
+        TIER_QUEUE_PRIORITY[user.tier]
       );
 
       return generation;
