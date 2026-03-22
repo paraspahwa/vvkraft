@@ -44,7 +44,7 @@ function docToGeneration(data: FirestoreDocData, id: string): Generation {
 export async function getUserById(userId: string): Promise<User | null> {
   const doc = await usersCol().doc(userId).get();
   if (!doc.exists) return null;
-  return docToUser(doc.data()!, doc.id);
+  return docToUser(doc.data() as FirestoreDocData, doc.id);
 }
 
 export async function createUser(
@@ -155,13 +155,18 @@ export async function createGeneration(
   const ref = generationsCol().doc();
   const generation = { ...data, createdAt: now, updatedAt: now };
   await ref.set(generation);
-  return docToGeneration(generation, ref.id);
+  return {
+    ...data,
+    id: ref.id,
+    createdAt: now.toDate(),
+    updatedAt: now.toDate(),
+  };
 }
 
 export async function getGenerationById(generationId: string): Promise<Generation | null> {
   const doc = await generationsCol().doc(generationId).get();
   if (!doc.exists) return null;
-  return docToGeneration(doc.data()!, doc.id);
+  return docToGeneration(doc.data() as FirestoreDocData, doc.id);
 }
 
 export async function updateGeneration(
@@ -190,7 +195,7 @@ export async function getUserGenerations(
   }
 
   const snapshot = await query.get();
-  return snapshot.docs.map((doc) => docToGeneration(doc.data()!, doc.id));
+  return snapshot.docs.map((doc) => docToGeneration(doc.data() as FirestoreDocData, doc.id));
 }
 
 // ── Character operations ─────────────────────────────────────────────────────

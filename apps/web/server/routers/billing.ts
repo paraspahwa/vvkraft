@@ -107,7 +107,7 @@ export const billingRouter = router({
       await updateUser(ctx.userId, {
         tier,
         razorpaySubscriptionId: input.razorpaySubscriptionId,
-        razorpayCustomerId: (payment as Record<string, unknown>)["customer_id"] as string | null ?? null,
+        razorpayCustomerId: (payment as unknown as Record<string, unknown>)["customer_id"] as string | null ?? null,
       });
 
       if (credits > 0) {

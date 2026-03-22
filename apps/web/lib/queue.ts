@@ -1,5 +1,5 @@
 import { Queue, Worker, type Job } from "bullmq";
-import { redis } from "./redis";
+import { bullmqConnection } from "./redis";
 
 export const QUEUE_NAMES = {
   VIDEO_GENERATION: "video-generation",
@@ -29,7 +29,7 @@ export interface WebhookJobData {
 export const videoGenerationQueue = new Queue<VideoGenerationJobData>(
   QUEUE_NAMES.VIDEO_GENERATION,
   {
-    connection: redis,
+    connection: bullmqConnection,
     defaultJobOptions: {
       attempts: 3,
       backoff: {
@@ -45,7 +45,7 @@ export const videoGenerationQueue = new Queue<VideoGenerationJobData>(
 export const webhookQueue = new Queue<WebhookJobData>(
   QUEUE_NAMES.WEBHOOK_PROCESSING,
   {
-    connection: redis,
+    connection: bullmqConnection,
     defaultJobOptions: {
       attempts: 5,
       backoff: {
