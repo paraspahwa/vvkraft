@@ -97,7 +97,7 @@ export const generationRouter = router({
       return generation;
     }),
 
-  // List user's generations
+  // List user's generations (max 50 per page)
   list: protectedProcedure
     .input(
       z.object({
