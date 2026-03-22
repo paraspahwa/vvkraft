@@ -1,8 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { updateGeneration, getGenerationById, getUserById, addCredits } from "@/lib/db";
+import { updateGeneration, getGenerationById, addCredits } from "@/lib/db";
 import { uploadFromUrl, buildVideoKey } from "@/lib/r2";
 
 export async function POST(req: NextRequest) {
+  // Verify the webhook secret to prevent spoofed requests
+  const secret = req.headers.get("x-fal-webhook-secret");
+  if (process.env.FAL_WEBHOOK_SECRET && secret !== process.env.FAL_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await req.json() as Record<string, unknown>;
 
