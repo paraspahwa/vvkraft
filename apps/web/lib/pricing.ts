@@ -7,8 +7,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: "Free",
     monthlyPriceUsd: 0,
     yearlyPriceUsd: 0,
-    stripePriceIdMonthly: null,
-    stripePriceIdYearly: null,
+    razorpayPlanIdMonthly: null,
+    razorpayPlanIdYearly: null,
     highlighted: false,
     features: [
       "3 videos per day",
@@ -24,8 +24,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: "Creator",
     monthlyPriceUsd: 19,
     yearlyPriceUsd: 15, // per month billed yearly
-    stripePriceIdMonthly: process.env.STRIPE_PRICE_CREATOR_MONTHLY ?? "",
-    stripePriceIdYearly: process.env.STRIPE_PRICE_CREATOR_YEARLY ?? "",
+    razorpayPlanIdMonthly: process.env.RAZORPAY_PLAN_CREATOR_MONTHLY ?? "",
+    razorpayPlanIdYearly: process.env.RAZORPAY_PLAN_CREATOR_YEARLY ?? "",
     highlighted: false,
     features: [
       "50 videos per month",
@@ -42,8 +42,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: "Pro",
     monthlyPriceUsd: 49,
     yearlyPriceUsd: 39,
-    stripePriceIdMonthly: process.env.STRIPE_PRICE_PRO_MONTHLY ?? "",
-    stripePriceIdYearly: process.env.STRIPE_PRICE_PRO_YEARLY ?? "",
+    razorpayPlanIdMonthly: process.env.RAZORPAY_PLAN_PRO_MONTHLY ?? "",
+    razorpayPlanIdYearly: process.env.RAZORPAY_PLAN_PRO_YEARLY ?? "",
     highlighted: true,
     features: [
       "200 videos per month",
@@ -62,8 +62,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: "Studio",
     monthlyPriceUsd: 149,
     yearlyPriceUsd: 119,
-    stripePriceIdMonthly: process.env.STRIPE_PRICE_STUDIO_MONTHLY ?? "",
-    stripePriceIdYearly: process.env.STRIPE_PRICE_STUDIO_YEARLY ?? "",
+    razorpayPlanIdMonthly: process.env.RAZORPAY_PLAN_STUDIO_MONTHLY ?? "",
+    razorpayPlanIdYearly: process.env.RAZORPAY_PLAN_STUDIO_YEARLY ?? "",
     highlighted: false,
     features: [
       "Unlimited videos",

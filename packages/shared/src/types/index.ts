@@ -18,8 +18,8 @@ export interface User {
   tier: SubscriptionTier;
   credits: number;
   creditsUsedThisMonth: number;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
+  razorpayCustomerId: string | null;
+  razorpaySubscriptionId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,7 +91,7 @@ export interface CreditTransaction {
   type: "purchase" | "subscription" | "generation" | "refund" | "bonus";
   description: string;
   generationId: string | null;
-  stripePaymentIntentId: string | null;
+  razorpayPaymentId: string | null;
   createdAt: Date;
 }
 
@@ -113,8 +113,8 @@ export interface PricingPlan {
   name: string;
   monthlyPriceUsd: number;
   yearlyPriceUsd: number;
-  stripePriceIdMonthly: string | null;
-  stripePriceIdYearly: string | null;
+  razorpayPlanIdMonthly: string | null;
+  razorpayPlanIdYearly: string | null;
   features: string[];
   limits: TierLimits;
   highlighted: boolean;

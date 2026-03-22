@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badg
 import { cn } from "@videoforge/ui";
 import type { PricingPlan } from "@videoforge/shared";
 import { trpc } from "@/lib/trpc/client";
+import { loadRazorpayScript } from "@/lib/razorpay-client";
+import { useRouter } from "next/navigation";
 
 interface PricingCardProps {
   plan: PricingPlan;
@@ -15,17 +17,57 @@ interface PricingCardProps {
 export function PricingCard({ plan, billingPeriod, currentTier }: PricingCardProps) {
   const isCurrent = currentTier === plan.tier;
   const price = billingPeriod === "yearly" ? plan.yearlyPriceUsd : plan.monthlyPriceUsd;
+  const router = useRouter();
 
-  const checkoutMutation = trpc.billing.createSubscriptionCheckout.useMutation({
-    onSuccess: ({ url }) => {
-      if (url) window.location.href = url;
-    },
+  const checkoutMutation = trpc.billing.createSubscriptionCheckout.useMutation();
+  const verifyMutation = trpc.billing.verifySubscriptionPayment.useMutation({
+    onSuccess: () => router.push("/dashboard?upgraded=true"),
   });
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     if (plan.tier === "free") return;
-    checkoutMutation.mutate({ tier: plan.tier as "creator" | "pro" | "studio", billingPeriod });
+
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      console.error("Failed to load Razorpay checkout");
+      return;
+    }
+
+    const data = await checkoutMutation.mutateAsync({
+      tier: plan.tier as "creator" | "pro" | "studio",
+      billingPeriod,
+    });
+
+    const rzp = new window.Razorpay({
+      key: data.keyId,
+      subscription_id: data.subscriptionId,
+      name: "VideoForge",
+      description: `${plan.name} Plan — ${billingPeriod}`,
+      amount: data.amount,
+      currency: data.currency,
+      prefill: {
+        email: data.userEmail,
+        name: data.userName,
+      },
+      theme: { color: "#6366F1" },
+      handler: (response: {
+        razorpay_payment_id: string;
+        razorpay_subscription_id: string;
+        razorpay_signature: string;
+      }) => {
+        verifyMutation.mutate({
+          razorpayPaymentId: response.razorpay_payment_id,
+          razorpaySubscriptionId: response.razorpay_subscription_id,
+          razorpaySignature: response.razorpay_signature,
+          tier: plan.tier as "creator" | "pro" | "studio",
+        });
+      },
+    });
+
+    rzp.open();
   };
+
+  const isPending = checkoutMutation.isPending || verifyMutation.isPending;
 
   return (
     <Card
@@ -82,7 +124,7 @@ export function PricingCard({ plan, billingPeriod, currentTier }: PricingCardPro
           size="lg"
           className="w-full"
           disabled={isCurrent || plan.tier === "free"}
-          loading={checkoutMutation.isPending}
+          loading={isPending}
         >
           {isCurrent ? "Current Plan" : plan.tier === "free" ? "Get Started Free" : (
             <span className="flex items-center gap-1.5">

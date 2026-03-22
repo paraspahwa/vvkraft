@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ExternalLink, CreditCard, User, Bell } from "lucide-react";
+import { CreditCard, User, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input } from "@videoforge/ui";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Header } from "@/components/layout/header";
@@ -17,8 +17,8 @@ export default function SettingsPage() {
     onSuccess: () => void utils.user.me.invalidate(),
   });
 
-  const portalMutation = trpc.billing.createPortalSession.useMutation({
-    onSuccess: ({ url }) => { if (url) window.open(url, "_blank"); },
+  const portalMutation = trpc.billing.cancelSubscription.useMutation({
+    onSuccess: () => void utils.user.me.invalidate(),
   });
 
   const {
@@ -107,15 +107,14 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {user?.stripeCustomerId && (
+            {user?.razorpaySubscriptionId && (
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full text-red-400 border-red-500/30 hover:bg-red-500/10"
                 onClick={() => portalMutation.mutate()}
                 loading={portalMutation.isPending}
               >
-                <ExternalLink className="h-4 w-4" />
-                Manage Billing
+                Cancel Subscription
               </Button>
             )}
           </CardContent>
