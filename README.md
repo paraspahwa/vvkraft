@@ -1,14 +1,24 @@
-# VideoForge — AI Video Generation Platform
-
-> **Turn text into cinematic videos** powered by Kling AI, WAN 2.2, and Fal.ai — with subscriptions handled by Razorpay.
-
 <div align="center">
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
-![Expo](https://img.shields.io/badge/Expo-52-blue?logo=expo)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)
-![Turborepo](https://img.shields.io/badge/Turborepo-2-red?logo=turborepo)
-![Firebase](https://img.shields.io/badge/Firebase-10-orange?logo=firebase)
+```
+██╗   ██╗██╗██████╗ ███████╗ ██████╗ ███████╗ ██████╗ ██████╗  ██████╗ ███████╗
+██║   ██║██║██╔══██╗██╔════╝██╔═══██╗██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝
+██║   ██║██║██║  ██║█████╗  ██║   ██║█████╗  ██║   ██║██████╔╝██║  ███╗█████╗
+╚██╗ ██╔╝██║██║  ██║██╔══╝  ██║   ██║██╔══╝  ██║   ██║██╔══██╗██║   ██║██╔══╝
+ ╚████╔╝ ██║██████╔╝███████╗╚██████╔╝██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗
+  ╚═══╝  ╚═╝╚═════╝ ╚══════╝ ╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+```
+
+### **Turn text into cinematic videos** — powered by Kling AI, WAN 2.2, and Fal.ai
+
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Expo](https://img.shields.io/badge/Expo-52-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Turborepo](https://img.shields.io/badge/Turborepo-2-EF4444?logo=turborepo&logoColor=white)](https://turbo.build/)
+[![Firebase](https://img.shields.io/badge/Firebase-10-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-6366F1.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 </div>
 
@@ -16,6 +26,8 @@
 
 ## Table of Contents
 
+- [Why VideoForge?](#why-videoforge)
+- [Demo](#demo)
 - [Overview](#overview)
 - [Tech Stack](#tech-stack)
 - [Monorepo Structure](#monorepo-structure)
@@ -25,6 +37,7 @@
   - [Prerequisites](#prerequisites)
   - [Environment Variables](#environment-variables)
   - [Install & Run](#install--run)
+- [Deployment](#deployment)
 - [Architecture](#architecture)
   - [API Layer (tRPC)](#api-layer-trpc)
   - [AI Video Generation Pipeline](#ai-video-generation-pipeline)
@@ -32,8 +45,49 @@
   - [Storage (Cloudflare R2)](#storage-cloudflare-r2)
   - [Queue (BullMQ + Redis)](#queue-bullmq--redis)
 - [Implementation Status](#implementation-status)
-  - [✅ Done](#-done)
-  - [🚧 Pending / Not Yet Implemented](#-pending--not-yet-implemented)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [FAQ](#faq)
+- [Support](#support)
+- [Acknowledgments](#acknowledgments)
+- [License](#license)
+
+---
+
+## Why VideoForge?
+
+| | VideoForge | Traditional tools |
+|---|---|---|
+| **Setup time** | Minutes | Days / weeks |
+| **Cost** | From $0 | $$$+ per production |
+| **Skills needed** | None | Video editing, VFX |
+| **Output quality** | Up to 1080p cinematic | Depends on operator |
+| **Scale** | Unlimited AI generation | Limited by crew / hardware |
+| **Cross-platform** | Web + iOS/Android | Usually desktop-only |
+
+- 🎬 **Multiple state-of-the-art models** — Kling v3 Pro, Kling v2.6 Pro, WAN 2.2, LongCat — all in one platform
+- 🧑‍🎨 **Character consistency** — upload a reference image and maintain your character across unlimited videos
+- 📱 **Web + Mobile** — full-featured Next.js web app and native Expo/React Native mobile app share the same API
+- 💳 **Flexible billing** — monthly/yearly subscriptions *and* one-time credit top-ups, powered by Razorpay
+- ⚡ **Priority queue** — Studio and Pro subscribers jump the queue automatically via BullMQ priorities
+- 🔒 **Secure by default** — Firebase Auth tokens verified server-side on every tRPC request; Razorpay webhooks verified with HMAC-SHA256
+
+---
+
+## Demo
+
+> 🚀 **Live demo coming soon.** Star the repo to be notified on launch.
+
+| Web App — Generate Screen | Mobile App — Gallery |
+|:---:|:---:|
+| *(screenshot placeholder)* | *(screenshot placeholder)* |
+
+**Generation flow (30-second walkthrough):**
+
+```
+Type a prompt → Select model & settings → Hit Generate
+     → Real-time status polling → Video ready in your gallery
+```
 
 ---
 
@@ -43,9 +97,10 @@
 
 - Generate videos from text prompts using multiple AI models (Kling v3, Kling v2.6 Pro, WAN 2.2, LongCat)
 - Manage character consistency across generations
-- Browse their video gallery
+- Browse their video gallery with infinite scroll and status filtering
 - Subscribe to tiered plans or buy one-time credit packs (via Razorpay)
 - Access everything from both a **Next.js web app** and a native **Expo/React Native mobile app**
+- Watch completed videos inline on web and in a full-screen player on mobile
 
 ---
 
@@ -285,14 +340,63 @@ npm run dev
 cd apps/web && npm run dev       # http://localhost:3000
 cd apps/mobile && npm run dev    # Expo dev server
 
-# Build
+# Start the BullMQ video-generation worker (separate terminal)
+cd apps/web && npm run worker
+
+# Build for production
 npm run build
 
-# Lint
+# Lint all packages
 npm run lint
 
-# Type-check
+# Type-check all packages
 npm run typecheck
+```
+
+> **Tip:** You need Redis running locally (`redis-server`) before starting the worker or the web app in development.
+
+---
+
+## Deployment
+
+### Web App → Vercel
+
+The `apps/web` Next.js app deploys to Vercel with zero configuration:
+
+1. Import the repo in the [Vercel dashboard](https://vercel.com/new)
+2. Set **Root Directory** to `apps/web`
+3. Add all environment variables from `apps/web/.env.local` in the Vercel project settings
+4. Push to `main` — Vercel auto-deploys on every commit
+
+> Set `NEXT_PUBLIC_APP_URL` to your production Vercel URL (e.g. `https://videoforge.vercel.app`) so Razorpay and Fal.ai webhooks resolve correctly.
+
+### BullMQ Worker → Railway / Render
+
+The video-generation worker (`apps/web/worker/index.ts`) is a long-running Node.js process. Deploy it separately:
+
+**Railway:**
+```bash
+# railway.toml (create in repo root)
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build --workspace=apps/web"
+
+[deploy]
+startCommand = "node apps/web/dist/worker/index.js"
+```
+
+**Render:**
+- Service type: **Background Worker**
+- Build command: `npm install && npm run build --workspace=apps/web`
+- Start command: `node apps/web/dist/worker/index.js`
+
+### Mobile App → Expo Application Services (EAS)
+
+```bash
+npm install -g eas-cli
+cd apps/mobile
+eas build --platform all   # iOS + Android
+eas submit                 # Submit to App Store / Google Play
 ```
 
 ---
@@ -486,24 +590,170 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 
 ---
 
+## Roadmap
+
+> Items are ordered roughly by priority. Contributions are welcome on any of these!
+
+### 🟡 Short-term (next release)
+
+| Priority | Item | Notes |
+|:---:|---|---|
+| 🔴 High | **Google / Social OAuth** | Wire up Firebase Google, Apple, GitHub providers |
+| 🔴 High | **Rate limiting** | IP-based + per-user middleware on tRPC & webhook routes |
+| 🟠 Med | **Email notifications** | Resend / SendGrid for signup confirmation and video-ready alerts |
+| 🟠 Med | **Push notifications** | `expo-notifications` on mobile; server-side trigger on video completion |
+| 🟠 Med | **Video download (web)** | Download button alongside inline player |
+| 🟡 Low | **Privacy / Terms pages** | Replace `#` links in footer with real content |
+
+### 🟢 Mid-term
+
+| Item | Notes |
+|---|---|
+| **Test suite** | Vitest unit tests + Playwright E2E; no tests exist yet |
+| **CI/CD pipeline** | GitHub Actions for lint + typecheck + build on PRs |
+| **Error monitoring** | Sentry integration for both web and worker |
+| **Analytics** | PostHog or Mixpanel for usage funnels |
+| **Admin dashboard** | Internal UI for user management, revenue, content moderation |
+
+### 🔵 Long-term / Nice-to-Have
+
+| Item | Notes |
+|---|---|
+| **Image-to-video on web** | UI upload flow exists in mobile; add to web generate page |
+| **Multi-shot / storyboard** | Sequence multiple prompts into a single video narrative |
+| **Native audio generation** | Auto-generate sound effects + ambience |
+| **Collaboration** | Teams, shared galleries, project workspaces |
+| **API access (Studio)** | Public REST/tRPC API for Studio tier (already gated in billing) |
+| **Replicate fallback** | Automatic failover from Fal.ai → Replicate on errors |
+
+---
+
 ## Contributing
 
-1. Clone the repo
-2. Copy `.env.example` to `.env.local` in `apps/web/` and `apps/mobile/`
-3. Fill in all required secrets
-4. Run `npm install` from the repo root
-5. Run `npm run dev` to start all apps
+We welcome contributions of all sizes! Here's how to get started:
 
-Linting and type-checking run across all packages via Turborepo:
+### Quick contribution guide
 
-```bash
-npm run lint       # ESLint across all packages
-npm run typecheck  # tsc --noEmit across all packages
-npm run build      # Production build (web only currently)
-```
+1. **Fork** the repo and create your branch from `main`:
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+2. Copy `.env.example` to `.env.local` in `apps/web/` and `apps/mobile/` and fill in your secrets
+3. Install dependencies: `npm install` (from repo root)
+4. Make your changes, then ensure everything passes:
+   ```bash
+   npm run lint       # ESLint across all packages
+   npm run typecheck  # tsc --noEmit across all packages
+   npm run build      # Production build
+   ```
+5. Commit with a clear message following [Conventional Commits](https://www.conventionalcommits.org/):
+   ```
+   feat: add Google OAuth provider
+   fix: refund credits on webhook timeout
+   docs: update environment variable list
+   ```
+6. Open a Pull Request — describe **what** and **why**, not just how.
+
+### Areas most in need of help
+
+- 🧪 **Tests** — the monorepo has zero tests; Vitest unit tests or Playwright E2E would be a huge win
+- 🔐 **Google/Social OAuth** — straightforward Firebase wiring
+- 📧 **Email notifications** — Resend SDK integration
+- 🌐 **Internationalisation** — `next-intl` or similar
+
+### Code style
+
+- **TypeScript strict mode** everywhere — no `any`, no `@ts-ignore`
+- Tailwind utility classes; avoid raw `style=` attributes on web
+- Keep shared logic in `packages/shared`; keep UI primitives in `packages/ui`
+- One tRPC procedure per logical operation — keep routers slim
+
+---
+
+## FAQ
+
+<details>
+<summary><strong>What AI models does VideoForge support?</strong></summary>
+
+VideoForge uses four models via [Fal.ai](https://fal.ai/), selected automatically by subscription tier:
+
+| Tier | Model | Max Resolution |
+|---|---|---|
+| Free | LongCat (distilled, text-to-video) | 480p |
+| Creator | WAN 2.2 (image-to-video) | 720p |
+| Pro | Kling v2.6 Pro | 1080p |
+| Studio | Kling v3 Pro | 1080p |
+</details>
+
+<details>
+<summary><strong>How does the credit system work?</strong></summary>
+
+- **1 credit = $0.10 USD**
+- Credits are deducted **upfront** when you submit a generation
+- If generation **fails**, credits are automatically **refunded** to your account
+- Monthly plan credits reset each billing cycle; top-up packs never expire
+- Credit cost depends on model, resolution, and duration — use `generation.estimateCost` to preview before generating
+</details>
+
+<details>
+<summary><strong>Why Razorpay instead of Stripe?</strong></summary>
+
+Razorpay is optimised for the Indian market with support for UPI, Netbanking, and domestic cards. The billing implementation is fully swappable — the `billing` tRPC router abstracts payment provider details.
+</details>
+
+<details>
+<summary><strong>Can I self-host VideoForge?</strong></summary>
+
+Yes. You need:
+- A Firebase project (Auth + Firestore)
+- A [Fal.ai](https://fal.ai/) API key
+- A Razorpay account (or swap for Stripe)
+- A Cloudflare R2 bucket (or any S3-compatible storage)
+- Redis (locally or a managed service like Upstash)
+
+See [Getting Started](#getting-started) for the full env-var list and [Deployment](#deployment) for hosting options.
+</details>
+
+<details>
+<summary><strong>How does character consistency work?</strong></summary>
+
+Upload a reference image for a character on the `/characters` page. When generating a video you can select that character — the reference image is passed to the AI model alongside your text prompt to maintain visual consistency across generations.
+</details>
+
+<details>
+<summary><strong>Is there a mobile app?</strong></summary>
+
+Yes — a full-featured Expo / React Native app lives in `apps/mobile`. It shares the same tRPC API as the web app and includes: auth, generate screen, gallery (infinite scroll), full-screen video player, profile & stats, and a billing screen.
+</details>
+
+---
+
+## Support
+
+- 🐛 **Found a bug?** [Open an issue](../../issues/new?template=bug_report.md)
+- 💡 **Feature request?** [Start a discussion](../../discussions/new?category=ideas)
+- 🔒 **Security vulnerability?** Please open a [private security advisory](../../security/advisories/new) — do **not** open a public issue
+
+---
+
+## Acknowledgments
+
+VideoForge is built on the shoulders of giants:
+
+- [Fal.ai](https://fal.ai/) — AI model inference (Kling, WAN, LongCat)
+- [Turborepo](https://turbo.build/) — monorepo build system
+- [tRPC](https://trpc.io/) — end-to-end type-safe API layer
+- [TanStack Query](https://tanstack.com/query) — async state management
+- [Firebase](https://firebase.google.com/) — auth and Firestore database
+- [Cloudflare R2](https://www.cloudflare.com/products/r2/) — zero-egress-cost video storage
+- [BullMQ](https://bullmq.io/) — priority job queues
+- [Razorpay](https://razorpay.com/) — billing and payments
+- [Framer Motion](https://www.framer.com/motion/) — animations
+- [shadcn/ui](https://ui.shadcn.com/) — UI component inspiration
 
 ---
 
 ## License
 
-MIT © VideoForge
+MIT © VideoForge — see [LICENSE](LICENSE) for details.
+
