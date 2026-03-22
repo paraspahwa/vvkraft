@@ -1,0 +1,12 @@
+{
+  "name": "@videoforge/tailwind-config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./base.ts",
+  "exports": {
+    ".": "./base.ts"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
