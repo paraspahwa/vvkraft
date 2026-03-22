@@ -15,7 +15,7 @@ import { Worker, type Job } from "bullmq";
 import { fal } from "@fal-ai/client";
 import type { VideoGenerationJobData } from "../lib/queue";
 import { QUEUE_NAMES } from "../lib/queue";
-import { redis } from "../lib/redis";
+import { bullmqConnection } from "../lib/redis";
 import { getGenerationById, updateGeneration, addCredits } from "../lib/db";
 import { RESOLUTION_DIMENSIONS } from "../lib/fal";
 
@@ -201,7 +201,7 @@ export function createVideoGenerationWorker(): Worker<VideoGenerationJobData> {
     QUEUE_NAMES.VIDEO_GENERATION,
     processVideoGeneration,
     {
-      connection: redis,
+      connection: bullmqConnection,
       concurrency: 5, // process up to 5 jobs simultaneously
       limiter: {
         // Rate-limit fal.ai submissions: max 10 per second
