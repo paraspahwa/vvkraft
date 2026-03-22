@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SubscriptionTier, VideoResolution } from "../types";
+export * from "./agents";
 
 export const subscriptionTierSchema = z.enum(["free", "creator", "pro", "studio"] as const);
 

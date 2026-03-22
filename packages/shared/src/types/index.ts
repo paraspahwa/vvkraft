@@ -1,4 +1,5 @@
 // Core domain types for VideoForge
+export * from "./agents";
 
 export type SubscriptionTier = "free" | "creator" | "pro" | "studio";
 export type GenerationStatus = "pending" | "queued" | "processing" | "completed" | "failed" | "cancelled";
