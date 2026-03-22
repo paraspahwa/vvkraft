@@ -4,13 +4,29 @@ import { router, protectedProcedure } from "../trpc";
 import { characterCreateSchema } from "@videoforge/shared";
 import { createCharacter, getUserCharacters } from "@/lib/db";
 import { adminDb } from "@/lib/firebase-admin";
-import { deleteFromR2 } from "@/lib/r2";
+import { deleteFromR2, getPresignedUploadUrl, buildCharacterKey } from "@/lib/r2";
 
 export const characterRouter = router({
   // List user's characters
   list: protectedProcedure.query(async ({ ctx }) => {
     return getUserCharacters(ctx.userId);
   }),
+
+  // Get a presigned upload URL for a character's reference image.
+  // The client uploads directly to R2; the returned publicUrl is stored in the character record.
+  getUploadUrl: protectedProcedure
+    .input(
+      z.object({
+        characterId: z.string().min(1),
+        contentType: z.enum(["image/jpeg", "image/jpg", "image/png", "image/webp"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const key = buildCharacterKey(ctx.userId, input.characterId);
+      const uploadUrl = await getPresignedUploadUrl(key, input.contentType, 3600);
+      const publicUrl = `${process.env.R2_PUBLIC_URL ?? ""}/${key}`;
+      return { uploadUrl, publicUrl, key };
+    }),
 
   // Create a character
   create: protectedProcedure

@@ -42,6 +42,14 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="auth/login" options={{ title: "Sign In", headerShown: false }} />
+          <Stack.Screen
+            name="video/[id]"
+            options={{
+              title: "Video",
+              presentation: "modal",
+              headerShown: false,
+            }}
+          />
         </Stack>
       </QueryClientProvider>
     </trpc.Provider>

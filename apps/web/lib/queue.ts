@@ -21,7 +21,7 @@ export interface VideoGenerationJobData {
 }
 
 export interface WebhookJobData {
-  type: "fal" | "stripe";
+  type: "fal" | "razorpay";
   payload: Record<string, unknown>;
   signature?: string;
 }

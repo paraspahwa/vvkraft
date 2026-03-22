@@ -1,15 +1,19 @@
+import crypto from "crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import Stripe from "stripe";
+import Razorpay from "razorpay";
 import { router, protectedProcedure } from "../trpc";
-import { updateUser } from "@/lib/db";
+import { updateUser, addCredits } from "@/lib/db";
 import { PRICING_PLANS } from "@/lib/pricing";
+import { TIER_LIMITS } from "@videoforge/shared";
+import type { SubscriptionTier } from "@videoforge/shared";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2024-06-20",
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID ?? "",
+  key_secret: process.env.RAZORPAY_KEY_SECRET ?? "",
 });
 
-// Credit packs available for purchase (credits → price in cents)
+// Credit packs available for purchase (credits → price in USD cents)
 const CREDIT_PACKS = [
   { credits: 50, priceUsd: 5, label: "50 credits" },
   { credits: 150, priceUsd: 14, label: "150 credits" },
@@ -22,16 +26,15 @@ export const billingRouter = router({
   plans: protectedProcedure.query(() => {
     return PRICING_PLANS.map((plan) => ({
       ...plan,
-      // Don't expose internal Stripe price IDs to client in full
-      stripePriceIdMonthly: plan.stripePriceIdMonthly ? "configured" : null,
-      stripePriceIdYearly: plan.stripePriceIdYearly ? "configured" : null,
+      razorpayPlanIdMonthly: plan.razorpayPlanIdMonthly ? "configured" : null,
+      razorpayPlanIdYearly: plan.razorpayPlanIdYearly ? "configured" : null,
     }));
   }),
 
   // Get credit pack options
   creditPacks: protectedProcedure.query(() => CREDIT_PACKS),
 
-  // Create Stripe checkout session for subscription
+  // Create Razorpay subscription for plan upgrade
   createSubscriptionCheckout: protectedProcedure
     .input(
       z.object({
@@ -43,89 +46,159 @@ export const billingRouter = router({
       const plan = PRICING_PLANS.find((p) => p.tier === input.tier);
       if (!plan) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid plan" });
 
-      const priceId =
+      const planId =
         input.billingPeriod === "monthly"
-          ? plan.stripePriceIdMonthly
-          : plan.stripePriceIdYearly;
+          ? plan.razorpayPlanIdMonthly
+          : plan.razorpayPlanIdYearly;
 
-      if (!priceId) throw new TRPCError({ code: "BAD_REQUEST", message: "Plan not configured" });
+      if (!planId) throw new TRPCError({ code: "BAD_REQUEST", message: "Plan not configured" });
 
-      // Get or create Stripe customer
-      let customerId = ctx.user.stripeCustomerId;
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: ctx.user.email,
-          name: ctx.user.displayName ?? undefined,
-          metadata: { userId: ctx.userId },
-        });
-        customerId = customer.id;
-        await updateUser(ctx.userId, { stripeCustomerId: customerId });
-      }
-
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
-        metadata: { userId: ctx.userId, tier: input.tier },
+      const subscription = await razorpay.subscriptions.create({
+        plan_id: planId,
+        customer_notify: 1,
+        // monthly plans renew indefinitely; yearly plans charge once per year for 10 years
+        total_count: input.billingPeriod === "yearly" ? 10 : 120,
+        notes: {
+          userId: ctx.userId,
+          tier: input.tier,
+        },
       });
 
-      return { url: session.url };
+      return {
+        subscriptionId: subscription.id,
+        planId,
+        tier: input.tier,
+        keyId: process.env.RAZORPAY_KEY_ID ?? "",
+        userEmail: ctx.user.email,
+        userName: ctx.user.displayName ?? "",
+        amount: input.billingPeriod === "monthly"
+          ? plan.monthlyPriceUsd * 100
+          : plan.yearlyPriceUsd * 12 * 100,
+        currency: "USD",
+      };
     }),
 
-  // Create Stripe checkout session for one-time credit purchase
+  // Verify subscription payment after Razorpay checkout completes
+  verifySubscriptionPayment: protectedProcedure
+    .input(
+      z.object({
+        razorpayPaymentId: z.string(),
+        razorpaySubscriptionId: z.string(),
+        razorpaySignature: z.string(),
+        tier: z.enum(["creator", "pro", "studio"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET ?? "")
+        .update(`${input.razorpayPaymentId}|${input.razorpaySubscriptionId}`)
+        .digest("hex");
+
+      if (expectedSignature !== input.razorpaySignature) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment signature" });
+      }
+
+      const tier = input.tier as SubscriptionTier;
+      const credits = TIER_LIMITS[tier].includedCredits;
+
+      // Fetch the payment to get the customer ID
+      const payment = await razorpay.payments.fetch(input.razorpayPaymentId);
+
+      await updateUser(ctx.userId, {
+        tier,
+        razorpaySubscriptionId: input.razorpaySubscriptionId,
+        razorpayCustomerId: (payment as Record<string, unknown>)["customer_id"] as string | null ?? null,
+      });
+
+      if (credits > 0) {
+        await addCredits(
+          ctx.userId,
+          credits,
+          "subscription",
+          `${tier} plan monthly credits`,
+          input.razorpayPaymentId
+        );
+      }
+
+      return { success: true, tier };
+    }),
+
+  // Create Razorpay order for one-time credit purchase
   createCreditCheckout: protectedProcedure
     .input(z.object({ credits: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
       const pack = CREDIT_PACKS.find((p) => p.credits === input.credits);
       if (!pack) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid credit pack" });
 
-      let customerId = ctx.user.stripeCustomerId;
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: ctx.user.email,
-          metadata: { userId: ctx.userId },
-        });
-        customerId = customer.id;
-        await updateUser(ctx.userId, { stripeCustomerId: customerId });
-      }
-
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        mode: "payment",
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: `VideoForge Credits — ${pack.label}`,
-                description: `${pack.credits} credits ($${(pack.credits * 0.1).toFixed(2)} value)`,
-              },
-              unit_amount: pack.priceUsd * 100,
-            },
-            quantity: 1,
-          },
-        ],
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?credits_purchased=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
-        metadata: { userId: ctx.userId, creditAmount: pack.credits.toString() },
+      const order = await razorpay.orders.create({
+        amount: pack.priceUsd * 100, // amount in cents
+        currency: "USD",
+        receipt: `credits_${ctx.userId}_${Date.now()}`,
+        notes: {
+          userId: ctx.userId,
+          creditAmount: pack.credits.toString(),
+          label: pack.label,
+        },
       });
 
-      return { url: session.url };
+      return {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: process.env.RAZORPAY_KEY_ID ?? "",
+        userEmail: ctx.user.email,
+        userName: ctx.user.displayName ?? "",
+        credits: pack.credits,
+        label: pack.label,
+      };
     }),
 
-  // Create billing portal session
-  createPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.user.stripeCustomerId) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "No billing account found" });
+  // Verify credit purchase payment after Razorpay checkout completes
+  verifyCreditPayment: protectedProcedure
+    .input(
+      z.object({
+        razorpayPaymentId: z.string(),
+        razorpayOrderId: z.string(),
+        razorpaySignature: z.string(),
+        credits: z.number().int().positive(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET ?? "")
+        .update(`${input.razorpayOrderId}|${input.razorpayPaymentId}`)
+        .digest("hex");
+
+      if (expectedSignature !== input.razorpaySignature) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment signature" });
+      }
+
+      const pack = CREDIT_PACKS.find((p) => p.credits === input.credits);
+      if (!pack) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid credit pack" });
+
+      await addCredits(
+        ctx.userId,
+        input.credits,
+        "purchase",
+        `Purchased ${input.credits} credits (${pack.label})`,
+        input.razorpayPaymentId
+      );
+
+      return { success: true, credits: input.credits };
+    }),
+
+  // Cancel active subscription
+  cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+    if (!ctx.user.razorpaySubscriptionId) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "No active subscription found" });
     }
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: ctx.user.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+    await razorpay.subscriptions.cancel(ctx.user.razorpaySubscriptionId, false);
+
+    await updateUser(ctx.userId, {
+      razorpaySubscriptionId: null,
     });
 
-    return { url: session.url };
+    return { success: true };
   }),
 });

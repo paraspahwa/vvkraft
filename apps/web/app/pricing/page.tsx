@@ -7,6 +7,7 @@ import { PRICING_PLANS } from "@/lib/pricing";
 import { trpc } from "@/lib/trpc/client";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Header } from "@/components/layout/header";
+import { loadRazorpayScript } from "@/lib/razorpay-client";
 
 const CREDIT_PACKS = [
   { credits: 50, price: 5 },
@@ -18,9 +19,47 @@ const CREDIT_PACKS = [
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const { data: user } = trpc.user.me.useQuery();
-  const creditCheckoutMutation = trpc.billing.createCreditCheckout.useMutation({
-    onSuccess: ({ url }) => { if (url) window.location.href = url; },
-  });
+
+  const creditCheckoutMutation = trpc.billing.createCreditCheckout.useMutation();
+  const verifyCreditMutation = trpc.billing.verifyCreditPayment.useMutation();
+
+  const handleBuyCreditPack = async (credits: number) => {
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      console.error("Failed to load Razorpay checkout");
+      return;
+    }
+
+    const data = await creditCheckoutMutation.mutateAsync({ credits });
+
+    const rzp = new window.Razorpay({
+      key: data.keyId,
+      order_id: data.orderId,
+      name: "VideoForge",
+      description: `${data.label}`,
+      amount: data.amount,
+      currency: data.currency,
+      prefill: {
+        email: data.userEmail,
+        name: data.userName,
+      },
+      theme: { color: "#6366F1" },
+      handler: (response: {
+        razorpay_payment_id: string;
+        razorpay_order_id: string;
+        razorpay_signature: string;
+      }) => {
+        verifyCreditMutation.mutate({
+          razorpayPaymentId: response.razorpay_payment_id,
+          razorpayOrderId: response.razorpay_order_id,
+          razorpaySignature: response.razorpay_signature,
+          credits,
+        });
+      },
+    });
+
+    rzp.open();
+  };
 
   return (
     <AppLayout>
@@ -92,9 +131,9 @@ export default function PricingPage() {
                 </div>
                 <div className="text-2xl font-bold text-white">${pack.price}</div>
                 <button
-                  onClick={() => creditCheckoutMutation.mutate({ credits: pack.credits })}
-                  disabled={creditCheckoutMutation.isPending}
-                  className="w-full rounded-lg border border-surface-border py-2 text-sm font-medium text-white hover:bg-accent-400 hover:border-accent-400 transition-all"
+                  onClick={() => handleBuyCreditPack(pack.credits)}
+                  disabled={creditCheckoutMutation.isPending || verifyCreditMutation.isPending}
+                  className="w-full rounded-lg border border-surface-border py-2 text-sm font-medium text-white hover:bg-accent-400 hover:border-accent-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Buy Now
                 </button>

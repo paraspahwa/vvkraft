@@ -57,8 +57,8 @@ export async function createUser(
     tier: "free" as SubscriptionTier,
     credits: 0,
     creditsUsedThisMonth: 0,
-    stripeCustomerId: null,
-    stripeSubscriptionId: null,
+    razorpayCustomerId: null,
+    razorpaySubscriptionId: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -106,7 +106,7 @@ export async function deductCredits(
       type: "generation",
       description,
       generationId,
-      stripePaymentIntentId: null,
+      razorpayPaymentId: null,
       createdAt: Timestamp.now(),
     });
   });
@@ -117,7 +117,7 @@ export async function addCredits(
   amount: number,
   type: CreditTransaction["type"],
   description: string,
-  stripePaymentIntentId?: string
+  razorpayPaymentId?: string
 ): Promise<void> {
   await adminDb.runTransaction(async (tx) => {
     const userRef = usersCol().doc(userId);
@@ -140,7 +140,7 @@ export async function addCredits(
       type,
       description,
       generationId: null,
-      stripePaymentIntentId: stripePaymentIntentId ?? null,
+      razorpayPaymentId: razorpayPaymentId ?? null,
       createdAt: Timestamp.now(),
     });
   });

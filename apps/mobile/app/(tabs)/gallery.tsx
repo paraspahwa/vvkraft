@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Alert,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { trpc } from "@/lib/trpc";
 import type { Generation } from "@videoforge/shared";
 import { formatDuration } from "@videoforge/shared";
@@ -35,8 +35,18 @@ function VideoThumbnail({ generation }: { generation: Generation }) {
       ? "#EF4444"
       : "#F59E0B";
 
+  const handlePress = () => {
+    if (generation.status === "completed") {
+      router.push(`/video/${generation.id}`);
+    }
+  };
+
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handlePress}
+      activeOpacity={generation.status === "completed" ? 0.75 : 1}
+    >
       <View style={styles.thumbnail}>
         {generation.thumbnailUrl ? (
           <Image
@@ -57,13 +67,12 @@ function VideoThumbnail({ generation }: { generation: Generation }) {
         )}
 
         {/* Status dot */}
-        <View
-          style={[styles.statusDot, { backgroundColor: statusColor }]}
-        />
+        <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
 
+        {/* Play overlay for completed videos */}
         {generation.status === "completed" && (
           <View style={styles.playOverlay}>
-            <Ionicons name="play" size={20} color="white" />
+            <Ionicons name="play-circle" size={36} color="rgba(255,255,255,0.85)" />
           </View>
         )}
       </View>
@@ -77,7 +86,7 @@ function VideoThumbnail({ generation }: { generation: Generation }) {
           <Text style={styles.metaText}>{generation.resolution}</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -189,7 +198,7 @@ const styles = StyleSheet.create({
     inset: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
   cardContent: { padding: 10, gap: 4 },
   promptText: { color: COLORS.text, fontSize: 12, lineHeight: 16 },

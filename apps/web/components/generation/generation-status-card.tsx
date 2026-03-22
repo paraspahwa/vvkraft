@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { CheckCircle2, XCircle, Clock, Loader2, Play } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, XCircle, Clock, Loader2, Play, Download, Volume2, VolumeX } from "lucide-react";
 import { Card, CardContent, Progress, Badge } from "@videoforge/ui";
 import { trpc } from "@/lib/trpc/client";
 import type { Generation } from "@videoforge/shared";
@@ -21,6 +21,9 @@ const STATUS_CONFIG = {
 };
 
 export function GenerationStatusCard({ generationId, onComplete }: GenerationStatusCardProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
+
   const { data: generation, error } = trpc.generation.getById.useQuery(
     { id: generationId },
     {
@@ -38,6 +41,14 @@ export function GenerationStatusCard({ generationId, onComplete }: GenerationSta
       onComplete?.(generation);
     }
   }, [generation, onComplete]);
+
+  const handleDownload = () => {
+    if (!generation?.videoUrl) return;
+    const a = document.createElement("a");
+    a.href = generation.videoUrl;
+    a.download = `videoforge-${generationId.slice(0, 8)}.mp4`;
+    a.click();
+  };
 
   if (error) {
     return (
@@ -68,6 +79,30 @@ export function GenerationStatusCard({ generationId, onComplete }: GenerationSta
 
   return (
     <Card className={generation.status === "failed" ? "border-red-500/20" : ""}>
+      {/* Inline video player when completed */}
+      {generation.status === "completed" && generation.videoUrl && (
+        <div className="relative aspect-video w-full overflow-hidden rounded-t-xl bg-black">
+          <video
+            ref={videoRef}
+            src={generation.videoUrl}
+            poster={generation.thumbnailUrl ?? undefined}
+            autoPlay
+            loop
+            muted={muted}
+            playsInline
+            className="h-full w-full object-contain"
+          />
+          {/* Mute toggle */}
+          <button
+            onClick={() => setMuted((m) => !m)}
+            className="absolute bottom-2 right-2 rounded-lg bg-black/50 p-1.5 text-white backdrop-blur-sm hover:bg-black/70 transition-colors"
+            title={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+        </div>
+      )}
+
       <CardContent className="p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -94,15 +129,13 @@ export function GenerationStatusCard({ generationId, onComplete }: GenerationSta
         </div>
 
         {generation.status === "completed" && generation.videoUrl && (
-          <a
-            href={generation.videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={handleDownload}
             className="flex items-center gap-1.5 text-sm text-accent-400 hover:text-accent-300 transition-colors"
           >
-            <Play className="h-3.5 w-3.5" />
-            View Video
-          </a>
+            <Download className="h-3.5 w-3.5" />
+            Download Video
+          </button>
         )}
 
         {generation.status === "failed" && generation.errorMessage && (
