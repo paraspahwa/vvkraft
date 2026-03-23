@@ -65,7 +65,8 @@
 | **Scale** | Unlimited AI generation | Limited by crew / hardware |
 | **Cross-platform** | Web + iOS/Android | Usually desktop-only |
 
-- 🎬 **Multiple state-of-the-art models** — Kling v3 Pro, Kling v2.6 Pro, WAN 2.2, LongCat — all in one platform
+- 🎬 **40+ state-of-the-art models** — Kling v3 Pro, Kling v2.6 Pro, Kling O3, WAN 2.2, WAN 2.6, Longcat, LTXV, Krea WAN, Pixverse v5, Seedance, HunyuanVideo, and more — all in one platform
+- 📹 **Long-form video generation** — generate 30-second, 1-minute, and 2-minute AI videos using models purpose-built for continuous long-form output (Creator tier and above)
 - 🧑‍🎨 **Character consistency** — upload a reference image and maintain your character across unlimited videos
 - 📱 **Web + Mobile** — full-featured Next.js web app and native Expo/React Native mobile app share the same API
 - 💳 **Flexible billing** — monthly/yearly subscriptions *and* one-time credit top-ups, powered by Razorpay
@@ -95,7 +96,8 @@ Type a prompt → Select model & settings → Hit Generate
 
 **VideoForge** is a full-stack AI video generation SaaS platform built as a Turborepo monorepo. Users can:
 
-- Generate videos from text prompts using multiple AI models (Kling v3, Kling v2.6 Pro, WAN 2.2, LongCat)
+- Generate videos from text prompts using 40+ AI models (Kling v3 Pro, Kling O3, WAN 2.2/2.6, Longcat, LTXV, Krea WAN, Pixverse v5, Seedance, HunyuanVideo, and more)
+- Generate **long-form videos** (30s / 60s / 120s) using models designed for continuous long-form output
 - Manage character consistency across generations
 - Browse their video gallery with infinite scroll and status filtering
 - Subscribe to tiered plans or buy one-time credit packs (via Razorpay)
@@ -115,7 +117,7 @@ Type a prompt → Select model & settings → Hit Generate
 | **API** | [tRPC](https://trpc.io/) v11 + [TanStack Query](https://tanstack.com/query) v5 |
 | **Auth** | [Firebase Auth](https://firebase.google.com/) (email/password) |
 | **Database** | [Firestore](https://firebase.google.com/docs/firestore) (users, generations, characters, credit transactions) |
-| **AI / Video** | [Fal.ai](https://fal.ai/) (Kling v3 Pro, Kling v2.6 Pro, WAN 2.2, LongCat) |
+| **AI / Video** | [Fal.ai](https://fal.ai/) (Kling v3 Pro, Kling O3, WAN 2.2/2.6, Longcat, LTXV, Krea WAN, Pixverse, Seedance, HunyuanVideo, and 30+ more models) |
 | **Billing** | [Razorpay](https://razorpay.com/) (subscriptions + one-time purchases) |
 | **Storage** | [Cloudflare R2](https://www.cloudflare.com/products/r2/) (videos + thumbnails + character images) |
 | **Queue** | [BullMQ](https://bullmq.io/) + [Redis](https://redis.io/) (ioredis) |
@@ -136,6 +138,8 @@ videoforge/
 │   │   │   ├── page.tsx              # Landing page
 │   │   │   ├── dashboard/            # Dashboard
 │   │   │   ├── generate/             # Video generation UI
+│   │   │   │   ├── page.tsx          # Standard generation form
+│   │   │   │   └── long-video/       # Long-form video generation (30s–120s)
 │   │   │   ├── gallery/              # User video gallery
 │   │   │   ├── pricing/              # Pricing + credit packs
 │   │   │   ├── settings/             # Account settings
@@ -149,7 +153,7 @@ videoforge/
 │   │   │   ├── auth/                 # Firebase auth provider
 │   │   │   ├── billing/              # PricingCard with Razorpay popup
 │   │   │   ├── gallery/              # VideoCard component
-│   │   │   ├── generation/           # GenerationForm + StatusCard
+│   │   │   ├── generation/           # GenerationForm + StatusCard + LongVideoForm
 │   │   │   └── layout/               # AppLayout, Sidebar, Header
 │   │   ├── server/
 │   │   │   ├── trpc.ts               # tRPC context + middleware
@@ -245,12 +249,13 @@ videoforge/
 | Videos / day | 3 | — | — | — |
 | Videos / month | — | 50 | 200 | Unlimited |
 | Max duration | 5s | 10s | 15s | 15s |
+| Long-form video | ❌ | up to 60s | up to 120s | up to 120s |
 | Max resolution | 480p | 720p | 1080p | 1080p |
 | Watermark | ✅ | ❌ | ❌ | ❌ |
 | Character consistency | ❌ | ✅ | ✅ | ✅ |
 | Motion control | ❌ | ❌ | ✅ | ✅ |
 | Priority queue | ❌ | ❌ | ✅ | ✅ |
-| AI Model | LongCat (480p) | WAN 2.2 | Kling v2.6 Pro | Kling v3 Pro |
+| Default AI Model | Longcat (480p) | WAN 2.2 | Kling v2.6 Pro | Kling v3 Pro |
 | Included credits/mo | 0 | 190 | 490 | 1,490 |
 | API access | ❌ | ❌ | ❌ | ✅ |
 
@@ -410,11 +415,13 @@ All server-client communication goes through a single **tRPC** router at `/api/t
 ```
 appRouter
 ├── generation
-│   ├── create          — validate, deduct credits, enqueue job
-│   ├── getById         — poll status (used by StatusCard)
-│   ├── list            — paginated history (cursor-based)
-│   ├── cancel          — cancel pending jobs
-│   └── estimateCost    — preview credit cost before generating
+│   ├── create              — validate, deduct credits, enqueue job (standard, up to 15s)
+│   ├── createLongVideo     — validate, deduct credits, enqueue long-form job (30s / 60s / 120s)
+│   ├── getById             — poll status (used by StatusCard)
+│   ├── list                — paginated history (cursor-based)
+│   ├── cancel              — cancel pending jobs
+│   ├── estimateCost        — preview credit cost before generating
+│   └── estimateLongVideoCost — preview credit cost for a long-form video
 ├── user
 │   ├── me              — current user profile
 │   ├── updateProfile   — display name / photo
@@ -457,7 +464,7 @@ POST /api/webhooks/fal
   → status: FAILED       → mark failed + refund credits
 ```
 
-**Model routing by tier:**
+**Model routing by tier (standard video):**
 
 | Tier | Default Model | Max Resolution | Max Duration |
 |---|---|---|---|
@@ -465,6 +472,34 @@ POST /api/webhooks/fal
 | Creator | `fal-ai/wan/v2.2-a14b/image-to-video` | 720p | 10s |
 | Pro | `fal-ai/kling-video/v2.6/pro/text-to-video` | 1080p | 15s |
 | Studio | `fal-ai/kling-video/v3/pro/text-to-video` | 1080p | 15s |
+
+**Long-form video routing by tier:**
+
+| Tier | Default Long-Form Model | Max Long-Form Duration |
+|---|---|---|
+| Free | ❌ not available | — |
+| Creator | `fal-ai/longcat-video/distilled/text-to-video/720p` | 60s |
+| Pro | `fal-ai/ltxv-13b-098-distilled` | 120s |
+| Studio | `fal-ai/krea-wan-14b/text-to-video` | 120s |
+
+**Full model catalog (40+ models, selectable per tier):**
+
+> `+` means "and all higher tiers" (e.g. Creator+ = Creator, Pro, and Studio).
+
+| Family | Models | Available from |
+|---|---|---|
+| Longcat | 480p / 720p (distilled + standard) | Free+ |
+| LTXV / LTX | ltxv-13b, ltx-2, ltx-2.3, ltx-2-19b | Creator+ |
+| WAN / Krea | WAN 2.2-a14b, WAN 2.2-5b, WAN 2.5, WAN 2.6, Krea WAN 14B | Creator+ |
+| Kling | v2.6 Pro, v3 Pro, v3 Standard, O3 Pro, O3 Standard, v2.5 Turbo | Pro+ |
+| Pixverse | v5, v5.5, v5.6 | Creator+ |
+| ByteDance / Seedance | Seedance v1 Pro, Seedance v1.5 Pro | Creator+ |
+| HeyGen / Argil | Avatar3 Digital Twin, Video Agent v2, Argil Avatars | Pro+ |
+| Cosmos / HunyuanVideo | Cosmos Predict 2.5, HunyuanVideo v1.5 | Creator+ |
+| MiniMax | Hailuo 2.3 | Pro+ |
+| Kandinsky | Kandinsky5, Kandinsky5 Distilled | Creator+ |
+| Vidu | Q3 Turbo | Creator+ |
+| xAI / Veed | Grok Imagine Video, Veed Fabric 1.0 | Pro+ |
 
 ### Billing (Razorpay)
 
@@ -531,7 +566,8 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 - [x] **Landing page** — hero, feature cards, testimonials, CTA, footer
 - [x] **Auth pages** — login + register with Firebase email/password
 - [x] **Dashboard** — stats (credits, total videos, this-month, plan), quick actions, upgrade banner, recent generations
-- [x] **Generate page** — prompt form, negative prompt, duration, aspect ratio, resolution, model, real-time status polling
+- [x] **Generate page** — prompt form, negative prompt, duration, aspect ratio, resolution, model selection from full catalog, real-time status polling
+- [x] **Long Video page** (`/generate/long-video`) — 30s / 60s / 120s duration presets, long-form model picker, tier-aware availability
 - [x] **Gallery page** — infinite scroll, status filter (all/completed/processing/failed), load-more pagination
 - [x] **Pricing page** — 4 plan cards with monthly/yearly toggle, save-20% badge, 4 credit top-up packs, FAQ
 - [x] **Settings page** — profile update form, current plan display, cancel subscription button
@@ -541,7 +577,7 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 - [x] **Razorpay billing** — subscription checkout, one-time credit purchase, HMAC verification, webhook handler
 - [x] **Cloudflare R2** — upload, download, delete, presigned URL helpers
 - [x] **Redis + BullMQ** — queue definitions, job enqueue with tier priority
-- [x] **Model router** — tier-aware model selection, resolution/duration clamping, credit cost calculation
+- [x] **Model router** — tier-aware model selection, resolution/duration clamping, credit cost calculation; supports 40+ models across Longcat, LTXV, WAN, Kling, Pixverse, Seedance, HeyGen, Cosmos, and more
 - [x] **Razorpay client utility** — lazy script loader (`lib/razorpay-client.ts`)
 
 #### Mobile App (`apps/mobile`)
@@ -563,6 +599,8 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 | **Character image upload** | `character.getUploadUrl` tRPC procedure returns a presigned R2 URL. `CreateCharacterDialog` uploads directly to R2 via `PUT`, then creates the character record with the public URL. |
 | **Character management UI (web)** | `/characters` page with card grid, `CreateCharacterDialog` (image file picker + upload + form), `CharacterCard` with hover-delete confirm. Added to sidebar nav. |
 | **Mobile billing screen** | `apps/mobile/app/(tabs)/billing.tsx` — shows plan, credits, plan features, upgrade options and credit packs (all linking to web pricing page via `Linking.openURL`). Added as 4th tab. |
+| **Long-form video generation** | `/generate/long-video` page with `LongVideoForm` component; `generation.createLongVideo` and `generation.estimateLongVideoCost` tRPC procedures; tier-aware routing via `routeLongVideo()`; duration presets of 30s, 60s, 120s. Creator: up to 60s; Pro/Studio: up to 120s. |
+| **Expanded model catalog** | 40+ models now available across Longcat, LTXV/LTX, WAN/Krea, Kling (v3/O3), Pixverse v5, ByteDance Seedance, HeyGen, Argil, Cosmos, HunyuanVideo, MiniMax, Kandinsky, Vidu, xAI Grok, and Veed Fabric. Full catalog exposed via `VIDEO_MODEL_CATALOG` in `packages/shared`. Each model has per-second USD cost, audio support flag, long-video support flag, avatar flag, and minimum tier. |
 
 ### 🚧 Pending / Not Yet Implemented
 
@@ -675,14 +713,16 @@ We welcome contributions of all sizes! Here's how to get started:
 <details>
 <summary><strong>What AI models does VideoForge support?</strong></summary>
 
-VideoForge uses four models via [Fal.ai](https://fal.ai/), selected automatically by subscription tier:
+VideoForge supports **40+ models** via [Fal.ai](https://fal.ai/), automatically routed by subscription tier. Each tier's default model is listed below, but users can choose any model available for their tier:
 
-| Tier | Model | Max Resolution |
+| Tier | Default Model | Max Resolution |
 |---|---|---|
-| Free | LongCat (distilled, text-to-video) | 480p |
+| Free | Longcat 480p (distilled) | 480p |
 | Creator | WAN 2.2 (image-to-video) | 720p |
 | Pro | Kling v2.6 Pro | 1080p |
 | Studio | Kling v3 Pro | 1080p |
+
+Additional model families available: Longcat (480p/720p variants), LTXV / LTX, WAN 2.2/2.5/2.6, Krea WAN 14B, Kling v3 Standard, Kling O3 Pro/Standard, Pixverse v5/5.5/5.6, ByteDance Seedance v1/v1.5, HeyGen Avatar3 / Video Agent, Argil Avatars, Cosmos Predict 2.5, HunyuanVideo v1.5, MiniMax Hailuo 2.3, Kandinsky5, Vidu Q3, xAI Grok Imagine Video, and Veed Fabric 1.0.
 </details>
 
 <details>
@@ -726,6 +766,20 @@ Upload a reference image for a character on the `/characters` page. When generat
 Yes — a full-featured Expo / React Native app lives in `apps/mobile`. It shares the same tRPC API as the web app and includes: auth, generate screen, gallery (infinite scroll), full-screen video player, profile & stats, and a billing screen.
 </details>
 
+<details>
+<summary><strong>What is long-form video generation?</strong></summary>
+
+Long-form video lets you generate videos of **30 seconds, 60 seconds, or 2 minutes** in a single request — far beyond the standard 5–15 second limit. It is available on paid plans via the `/generate/long-video` page:
+
+| Plan | Max Duration |
+|---|---|
+| Creator | 60 seconds |
+| Pro | 120 seconds |
+| Studio | 120 seconds |
+
+Long-form generation uses models purpose-built for continuous long-form output, such as Longcat, LTXV, Krea WAN 14B, Cosmos Predict 2.5, and HunyuanVideo. Credits are charged per second at the model's standard rate.
+</details>
+
 ---
 
 ## Support
@@ -740,7 +794,7 @@ Yes — a full-featured Expo / React Native app lives in `apps/mobile`. It share
 
 VideoForge is built on the shoulders of giants:
 
-- [Fal.ai](https://fal.ai/) — AI model inference (Kling, WAN, LongCat)
+- [Fal.ai](https://fal.ai/) — AI model inference (Kling, WAN, Longcat)
 - [Turborepo](https://turbo.build/) — monorepo build system
 - [tRPC](https://trpc.io/) — end-to-end type-safe API layer
 - [TanStack Query](https://tanstack.com/query) — async state management

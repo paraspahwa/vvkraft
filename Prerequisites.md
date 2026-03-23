@@ -365,7 +365,7 @@ All are available on free or pay-as-you-go plans.
 | Service | What it provides | Sign-up URL |
 |---------|----------------|-------------|
 | **Firebase** | Authentication (email/password) + Firestore database | <https://console.firebase.google.com/> |
-| **Fal.ai** | AI video generation (Kling, WAN, LongCat models) | <https://fal.ai/> |
+| **Fal.ai** | AI video generation (Kling, WAN, Longcat, LTXV, Krea WAN, Pixverse, Seedance, HunyuanVideo, and 30+ more models) | <https://fal.ai/> |
 | **Razorpay** | Subscription billing and one-time credit purchases | <https://razorpay.com/> |
 | **Cloudflare R2** | Object storage for generated videos | <https://dash.cloudflare.com/> → R2 |
 
@@ -485,6 +485,15 @@ cd apps/web
 npm run dev
 # → http://localhost:3000
 ```
+
+Key pages available at `http://localhost:3000`:
+- `/` — Landing page
+- `/dashboard` — User dashboard
+- `/generate` — Standard video generation (up to 15 seconds)
+- `/generate/long-video` — Long-form video generation (30s / 60s / 120s; Creator tier and above)
+- `/gallery` — Video gallery
+- `/characters` — Character management
+- `/pricing` — Plans and credit top-ups
 
 ### Background worker (BullMQ)
 
