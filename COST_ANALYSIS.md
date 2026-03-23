@@ -48,12 +48,14 @@ A **2.5× platform margin multiplier** is applied to all credit calculations:
 Credits = ceil(API_COST_USD × 2.5 / $0.10)
 ```
 
-| Metric | Before | After |
+| Metric | Before (no margin) | After (2.5× markup) |
 |---|:---:|:---:|
-| Effective API cost per credit | $0.10 | **$0.04** |
+| API cost burned per credit | $0.10 | **$0.04** |
 | Gross margin per credit | 0% | **60%** |
 | Worst-case Studio plan margin | 3% | **60%** |
-| Bulk credit pack (1500) margin | **−44%** (loss) | **40%** |
+| Bulk credit pack (1500) margin | **−44%** ¹ | **40%** |
+
+> ¹ Previous 1500-credit pack: sold at $100 ($0.067/credit), but each credit burned $0.10 of API cost → total API cost $150 vs $100 revenue = −$50 loss (−44% margin) when users selected expensive models.
 
 ### Dual-Region Strategy
 

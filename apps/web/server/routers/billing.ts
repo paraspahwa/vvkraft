@@ -61,15 +61,25 @@ export const billingRouter = router({
       if (!plan) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid plan" });
 
       const isIndia = input.region === "india";
-      const planId = isIndia
-        ? (input.billingPeriod === "monthly" ? plan.razorpayPlanIdMonthlyInr : plan.razorpayPlanIdYearlyInr)
-        : (input.billingPeriod === "monthly" ? plan.razorpayPlanIdMonthly : plan.razorpayPlanIdYearly);
+
+      // Select Razorpay plan ID based on region and billing period
+      let planId: string | null;
+      if (isIndia) {
+        planId = input.billingPeriod === "monthly"
+          ? plan.razorpayPlanIdMonthlyInr
+          : plan.razorpayPlanIdYearlyInr;
+      } else {
+        planId = input.billingPeriod === "monthly"
+          ? plan.razorpayPlanIdMonthly
+          : plan.razorpayPlanIdYearly;
+      }
 
       if (!planId) throw new TRPCError({ code: "BAD_REQUEST", message: "Plan not configured" });
 
       const subscription = await razorpay.subscriptions.create({
         plan_id: planId,
         customer_notify: 1,
+        // monthly plans renew indefinitely (120 months); yearly plans charge once per year for 10 years
         total_count: input.billingPeriod === "yearly" ? 10 : 120,
         notes: {
           userId: ctx.userId,
@@ -78,9 +88,17 @@ export const billingRouter = router({
         },
       });
 
-      const amount = isIndia
-        ? (input.billingPeriod === "monthly" ? plan.monthlyPriceInr * 100 : plan.yearlyPriceInr * 12 * 100)
-        : (input.billingPeriod === "monthly" ? plan.monthlyPriceUsd * 100 : plan.yearlyPriceUsd * 12 * 100);
+      // Calculate amount in smallest currency unit (cents for USD, paise for INR)
+      let amount: number;
+      if (isIndia) {
+        amount = input.billingPeriod === "monthly"
+          ? plan.monthlyPriceInr * 100
+          : plan.yearlyPriceInr * 12 * 100;
+      } else {
+        amount = input.billingPeriod === "monthly"
+          ? plan.monthlyPriceUsd * 100
+          : plan.yearlyPriceUsd * 12 * 100;
+      }
 
       return {
         subscriptionId: subscription.id,
@@ -226,11 +244,18 @@ export const billingRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment signature" });
       }
 
-      const packUsd = CREDIT_PACKS.find((p) => p.credits === input.credits);
-      const packInr = CREDIT_PACKS_INR.find((p) => p.credits === input.credits);
-      if (!packUsd && !packInr) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid credit pack" });
+      // Validate credit amount exists in either region's pack list.
+      // Both regions offer the same credit amounts (50/150/500/1500),
+      // and the Razorpay HMAC ensures the payment was genuine.
+      // The correct currency/price was enforced at checkout time.
+      const isValidPack = CREDIT_PACKS.some((p) => p.credits === input.credits)
+        || CREDIT_PACKS_INR.some((p) => p.credits === input.credits);
+      if (!isValidPack) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid credit pack" });
+      }
 
-      const label = packUsd?.label ?? packInr?.label ?? `${input.credits} credits`;
+      const pack = CREDIT_PACKS.find((p) => p.credits === input.credits);
+      const label = pack?.label ?? `${input.credits} credits`;
 
       await addCredits(
         ctx.userId,
