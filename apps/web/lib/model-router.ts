@@ -1,5 +1,14 @@
 import type { SubscriptionTier, VideoModel, VideoResolution } from "@videoforge/shared";
-import { getModelForTier, calculateCreditsCost, TIER_LIMITS, getLongVideoModelForTier, validateLongVideoForTier } from "@videoforge/shared";
+import {
+  getModelForTier,
+  calculateCreditsCost,
+  TIER_LIMITS,
+  getLongVideoModelForTier,
+  validateLongVideoForTier,
+  getModelsForTier,
+  getLongVideoModelsForTier,
+  TIER_ORDER,
+} from "@videoforge/shared";
 import type { LongVideoModel } from "@videoforge/shared";
 import { RESOLUTION_DIMENSIONS } from "./fal";
 
@@ -37,7 +46,7 @@ export interface LongVideoRouterOutput {
 }
 
 /**
- * Route a generation request to the appropriate model and enforce tier limits
+ * Route a standard generation request to the appropriate model enforcing tier limits.
  */
 export function routeModel(input: ModelRouterInput): ModelRouterOutput {
   const limits = TIER_LIMITS[input.tier];
@@ -73,7 +82,7 @@ export function routeModel(input: ModelRouterInput): ModelRouterOutput {
 }
 
 /**
- * Route a long-video generation request; throws if tier does not allow long video
+ * Route a long-video generation request; throws if tier does not allow long video.
  */
 export function routeLongVideo(input: LongVideoRouterInput): LongVideoRouterOutput {
   const validation = validateLongVideoForTier(input.tier, input.durationSeconds);
@@ -114,50 +123,19 @@ export function routeLongVideo(input: LongVideoRouterInput): LongVideoRouterOutp
 }
 
 /**
- * Returns which standard models a given tier has access to
+ * Check whether a tier can use the given model (derived from catalog minTier).
  */
 function isTierAllowedModel(tier: SubscriptionTier, model: VideoModel): boolean {
-  const allowedModels: Record<SubscriptionTier, VideoModel[]> = {
-    free: ["fal-ai/longcat-video/distilled/text-to-video/480p"],
-    creator: [
-      "fal-ai/longcat-video/distilled/text-to-video/480p",
-      "fal-ai/wan/v2.2-a14b/image-to-video",
-    ],
-    pro: [
-      "fal-ai/longcat-video/distilled/text-to-video/480p",
-      "fal-ai/wan/v2.2-a14b/image-to-video",
-      "fal-ai/kling-video/v2.6/pro/text-to-video",
-    ],
-    studio: [
-      "fal-ai/longcat-video/distilled/text-to-video/480p",
-      "fal-ai/wan/v2.2-a14b/image-to-video",
-      "fal-ai/kling-video/v2.6/pro/text-to-video",
-      "fal-ai/kling-video/v3/pro/text-to-video",
-    ],
-  };
-  return allowedModels[tier].includes(model);
+  const tierOrder: SubscriptionTier[] = ["free", "creator", "pro", "studio"];
+  const allowedModels = getModelsForTier(tier).map((m) => m.id);
+  return allowedModels.includes(model);
 }
 
 /**
- * Returns which long-video models a given tier can explicitly request
+ * Check whether a tier can use the given long-video model.
  */
 function isLongVideoModelAllowedForTier(tier: SubscriptionTier, model: LongVideoModel): boolean {
-  const allowedModels: Record<SubscriptionTier, LongVideoModel[]> = {
-    free: [],
-    creator: [
-      "fal-ai/longcat-video/distilled/text-to-video/480p",
-    ],
-    pro: [
-      "fal-ai/longcat-video/distilled/text-to-video/480p",
-      "fal-ai/longcat-video/distilled/text-to-video/720p",
-      "fal-ai/ltxv-13b-098-distilled",
-    ],
-    studio: [
-      "fal-ai/longcat-video/distilled/text-to-video/480p",
-      "fal-ai/longcat-video/distilled/text-to-video/720p",
-      "fal-ai/ltxv-13b-098-distilled",
-      "fal-ai/krea-wan-14b/text-to-video",
-    ],
-  };
-  return allowedModels[tier].includes(model);
+  const allowedModels = getLongVideoModelsForTier(tier).map((m) => m.id);
+  return allowedModels.includes(model as VideoModel);
 }
+

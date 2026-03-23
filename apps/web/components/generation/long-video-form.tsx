@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Wand2, Clock, Monitor, Shuffle, Lock, Zap, ChevronRight } from "lucide-react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@videoforge/ui";
-import { longVideoRequestSchema, type LongVideoRequestInput } from "@videoforge/shared";
+import {
+  Wand2,
+  Clock,
+  Monitor,
+  Lock,
+  Zap,
+  ChevronRight,
+  ChevronDown,
+  Info,
+} from "lucide-react";
+import { Button, Card, CardContent, CardHeader, CardTitle, Textarea } from "@videoforge/ui";
+import {
+  longVideoRequestSchema,
+  type LongVideoRequestInput,
+  getLongVideoModelsForTier,
+  getModelsForTier,
+  type VideoModelInfo,
+} from "@videoforge/shared";
 import { trpc } from "@/lib/trpc/client";
-import { useGeneration } from "@/hooks/use-generation";
 import Link from "next/link";
-import type { Generation } from "@videoforge/shared";
 
 interface LongVideoFormProps {
   onSuccess?: (generationId: string) => void;
@@ -22,40 +35,23 @@ const DURATION_PRESETS = [
 ];
 
 const ASPECT_RATIOS = [
-  { value: "16:9" as const, label: "16:9 Landscape" },
-  { value: "9:16" as const, label: "9:16 Portrait" },
-  { value: "1:1" as const, label: "1:1 Square" },
+  { value: "16:9" as const, label: "16:9" },
+  { value: "9:16" as const, label: "9:16" },
+  { value: "1:1" as const, label: "1:1" },
 ];
 
-const LONG_VIDEO_MODELS = [
-  {
-    id: "fal-ai/longcat-video/distilled/text-to-video/480p" as const,
-    name: "Longcat 480p",
-    description: "Fast & affordable — 480p",
-    badge: "Creator+",
-  },
-  {
-    id: "fal-ai/longcat-video/distilled/text-to-video/720p" as const,
-    name: "Longcat 720p",
-    description: "Higher quality — 720p",
-    badge: "Pro+",
-  },
-  {
-    id: "fal-ai/ltxv-13b-098-distilled" as const,
-    name: "LTXV 13B",
-    description: "Premium quality — up to 1080p",
-    badge: "Pro+",
-  },
-  {
-    id: "fal-ai/krea-wan-14b/text-to-video" as const,
-    name: "Krea WAN 14B",
-    description: "Studio-grade cinematic quality",
-    badge: "Studio",
-  },
-];
+const TIER_BADGE: Record<string, { label: string; color: string }> = {
+  free:    { label: "Free",    color: "bg-gray-500/15 text-gray-400" },
+  creator: { label: "Creator", color: "bg-blue-500/15 text-blue-400" },
+  pro:     { label: "Pro",     color: "bg-accent-400/15 text-accent-400" },
+  studio:  { label: "Studio",  color: "bg-yellow-500/15 text-yellow-400" },
+};
 
 export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
   const [selectedDuration, setSelectedDuration] = useState<30 | 60 | 120>(30);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(["Longcat", "LTXV / LTX"])
+  );
   const { data: user } = trpc.user.me.useQuery();
 
   const {
@@ -77,13 +73,28 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
   const selectedModel = watch("model");
 
   const { data: estimate } = trpc.generation.estimateLongVideoCost.useQuery(
-    { durationSeconds: selectedDuration },
+    { durationSeconds: selectedDuration, model: selectedModel },
     { enabled: !!user && user.tier !== "free" }
   );
 
   const createLongVideoMutation = trpc.generation.createLongVideo.useMutation();
 
   const isFreeTier = user?.tier === "free";
+
+  // Build grouped model catalog from shared package
+  const groupedModels = useMemo(() => {
+    // Show all long-video models; studio users see everything, others see what they can use
+    const allModels = getLongVideoModelsForTier("studio"); // full catalog for display
+    const tierModels = user ? getLongVideoModelsForTier(user.tier) : [];
+    const tierModelIds = new Set(tierModels.map((m) => m.id));
+
+    const groups: Record<string, { model: VideoModelInfo; locked: boolean }[]> = {};
+    for (const model of allModels) {
+      if (!groups[model.category]) groups[model.category] = [];
+      groups[model.category]!.push({ model, locked: !tierModelIds.has(model.id) });
+    }
+    return groups;
+  }, [user]);
 
   const onSubmit = async (data: LongVideoRequestInput) => {
     const generation = await createLongVideoMutation.mutateAsync(data);
@@ -95,7 +106,16 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
     setValue("durationSeconds", duration);
   };
 
-  // Show upgrade prompt for free users
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
+  // Free-tier gate
   if (isFreeTier) {
     return (
       <div className="space-y-6">
@@ -109,15 +129,16 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
                 <h3 className="text-lg font-semibold text-white">Paid Feature</h3>
                 <p className="text-sm text-gray-400 max-w-sm">
                   Long video generation (30s, 1min, 2min) is available on paid plans. Upgrade to
-                  Creator or higher to unlock this feature.
+                  Creator or higher to unlock this feature and access{" "}
+                  {getLongVideoModelsForTier("studio").length}+ AI models.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 w-full max-w-sm pt-2">
-                {[
-                  { tier: "Creator", price: "$19/mo", duration: "Up to 60 seconds" },
-                  { tier: "Pro", price: "$49/mo", duration: "Up to 2 minutes" },
-                  { tier: "Studio", price: "$149/mo", duration: "Up to 2 minutes + best models" },
-                ].map((plan) => (
+                {([
+                  { tier: "Creator", price: "$19/mo", duration: `Up to 60s · ${getLongVideoModelsForTier("creator").length} models` },
+                  { tier: "Pro",     price: "$49/mo",  duration: `Up to 2 min · ${getLongVideoModelsForTier("pro").length} models` },
+                  { tier: "Studio",  price: "$149/mo", duration: `Up to 2 min · all ${getLongVideoModelsForTier("studio").length} models` },
+                ] as const).map((plan) => (
                   <div
                     key={plan.tier}
                     className="flex items-center justify-between rounded-lg border border-surface-border bg-surface-card px-4 py-3"
@@ -141,10 +162,10 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
           </CardContent>
         </Card>
 
-        {/* Preview of what the feature looks like — disabled */}
+        {/* Blurred preview */}
         <div className="relative opacity-40 pointer-events-none select-none">
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/20" />
-          <PreviewForm />
+          <div className="absolute inset-0 z-10 rounded-xl bg-black/20" />
+          <PreviewSkeleton />
         </div>
       </div>
     );
@@ -152,7 +173,7 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Main prompt */}
+      {/* Prompt */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Describe your long video</CardTitle>
@@ -184,8 +205,7 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
             {DURATION_PRESETS.map((preset) => {
-              const isDisabled =
-                user?.tier === "creator" && preset.value === 120;
+              const isDisabled = user?.tier === "creator" && preset.value === 120;
               return (
                 <button
                   key={preset.value}
@@ -221,49 +241,104 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
         </CardContent>
       </Card>
 
-      {/* Model selection */}
+      {/* Model selection — grouped by category */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">AI Model</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {LONG_VIDEO_MODELS.map((model) => {
-              const isModelDisabled =
-                (model.badge === "Pro+" && user?.tier === "creator") ||
-                (model.badge === "Studio" && user?.tier !== "studio");
-              return (
-                <button
-                  key={model.id}
-                  type="button"
-                  disabled={isModelDisabled}
-                  onClick={() => !isModelDisabled && setValue("model", model.id)}
-                  className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-all ${
-                    selectedModel === model.id
-                      ? "border-accent-400 bg-accent-400/10"
-                      : "border-surface-border hover:border-gray-500"
-                  } ${isModelDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-sm font-medium ${
-                          selectedModel === model.id ? "text-accent-400" : "text-white"
+        <CardContent className="space-y-3">
+          {Object.entries(groupedModels).map(([category, models]) => (
+            <div key={category} className="rounded-lg border border-surface-border overflow-hidden">
+              {/* Category header */}
+              <button
+                type="button"
+                onClick={() => toggleCategory(category)}
+                className="flex w-full items-center justify-between px-4 py-2.5 bg-surface-hover/40 hover:bg-surface-hover transition-colors text-left"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  {category}
+                  <span className="ml-2 text-gray-600 normal-case tracking-normal font-normal">
+                    ({models.filter((m) => !m.locked).length}/{models.length} available)
+                  </span>
+                </span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-gray-500 transition-transform ${
+                    expandedCategories.has(category) ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Model list */}
+              {expandedCategories.has(category) && (
+                <div className="divide-y divide-surface-border">
+                  {models.map(({ model, locked }) => {
+                    const badge = TIER_BADGE[model.minTier]!;
+                    const isSelected = selectedModel === model.id;
+                    return (
+                      <button
+                        key={model.id}
+                        type="button"
+                        disabled={locked}
+                        onClick={() => !locked && setValue("model", model.id as LongVideoRequestInput["model"])}
+                        className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
+                          isSelected
+                            ? "bg-accent-400/10"
+                            : locked
+                            ? "opacity-50 cursor-not-allowed bg-transparent"
+                            : "hover:bg-surface-hover/30"
                         }`}
                       >
-                        {model.name}
-                      </span>
-                      <span className="rounded-full bg-surface-hover px-2 py-0.5 text-xs text-gray-400">
-                        {model.badge}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-400">{model.description}</span>
-                  </div>
-                  {isModelDisabled && <Lock className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
+                        {/* Selection indicator */}
+                        <div
+                          className={`mt-0.5 flex-shrink-0 h-4 w-4 rounded-full border-2 transition-colors ${
+                            isSelected
+                              ? "border-accent-400 bg-accent-400"
+                              : "border-gray-600"
+                          }`}
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`text-sm font-medium ${
+                                isSelected ? "text-accent-400" : "text-white"
+                              }`}
+                            >
+                              {model.displayName}
+                            </span>
+                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                            {model.hasAudio && (
+                              <span className="rounded-full bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                                Audio
+                              </span>
+                            )}
+                            {model.isAvatarModel && (
+                              <span className="rounded-full bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
+                                Avatar
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate">{model.description}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{model.pricingNote}</p>
+                        </div>
+
+                        {locked && <Lock className="mt-0.5 h-3.5 w-3.5 text-gray-600 flex-shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {!selectedModel && (
+            <p className="text-xs text-gray-500 flex items-center gap-1 pt-1">
+              <Info className="h-3 w-3" />
+              No model selected — your plan's default will be used automatically.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -301,12 +376,14 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
           {estimate?.available ? (
             <>
               <div>
-                <span>Cost: </span>
+                <span>Est. cost: </span>
                 <span className="font-bold text-accent-400">{estimate.creditsCost} credits</span>
               </div>
-              <div className="text-xs text-gray-500">
-                Model: {estimate.model} · {estimate.effectiveResolution}
-              </div>
+              {estimate.model && (
+                <div className="text-xs text-gray-500">
+                  Model: {estimate.model} · {estimate.effectiveResolution}
+                </div>
+              )}
               {!estimate.hasEnoughCredits && (
                 <div className="text-red-400 text-xs">
                   Insufficient credits.{" "}
@@ -343,8 +420,8 @@ export function LongVideoForm({ onSuccess }: LongVideoFormProps) {
   );
 }
 
-/** Blurred preview shown to free-tier users */
-function PreviewForm() {
+/** Blurred skeleton shown to free-tier users */
+function PreviewSkeleton() {
   return (
     <div className="space-y-4">
       <Card>
@@ -362,12 +439,21 @@ function PreviewForm() {
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
             {["30 sec", "1 min", "2 min"].map((label) => (
-              <div
-                key={label}
-                className="rounded-xl border border-surface-border p-4 text-left"
-              >
+              <div key={label} className="rounded-xl border border-surface-border p-4">
                 <div className="text-lg font-bold text-white">{label}</div>
               </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">AI Model</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {["Longcat", "LTXV / LTX", "Wan / Krea"].map((cat) => (
+              <div key={cat} className="h-10 rounded-lg bg-surface-hover" />
             ))}
           </div>
         </CardContent>
@@ -375,3 +461,4 @@ function PreviewForm() {
     </div>
   );
 }
+

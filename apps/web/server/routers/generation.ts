@@ -273,6 +273,7 @@ export const generationRouter = router({
           tier: user.tier,
           durationSeconds: input.durationSeconds,
           resolution: input.resolution,
+          requestedModel: input.model as Parameters<typeof routeLongVideo>[0]["requestedModel"],
         });
 
         return {

@@ -22,155 +22,273 @@ import { RESOLUTION_DIMENSIONS } from "../lib/fal";
 // Fal.ai model-specific input builders
 // Each model has slightly different parameter shapes.
 
-interface FalKlingInput {
+interface FalBasicInput {
   prompt: string;
   negative_prompt?: string;
+  num_frames?: number;
+  fps?: number;
+  width?: number;
+  height?: number;
+  seed?: number;
+  aspect_ratio?: string;
+  motion_strength?: number;
+  image_url?: string;
   duration?: number;
-  aspect_ratio?: string;
-  seed?: number;
-  motion_strength?: number;
-  image_url?: string;
 }
 
-interface FalWanInput {
-  prompt: string;
-  negative_prompt?: string;
-  image_url?: string;
-  num_frames?: number;
-  fps?: number;
-  width?: number;
-  height?: number;
-  aspect_ratio?: string;
-  seed?: number;
-  motion_strength?: number;
-}
+function buildFalInput(job: VideoGenerationJobData): FalBasicInput {
+  const dims = RESOLUTION_DIMENSIONS[job.resolution] ?? { width: 1280, height: 720 };
 
-interface FalLongcatInput {
-  prompt: string;
-  negative_prompt?: string;
-  num_frames?: number;
-  fps?: number;
-  width?: number;
-  height?: number;
-  seed?: number;
-}
-
-interface FalLtxvInput {
-  prompt: string;
-  negative_prompt?: string;
-  num_frames?: number;
-  fps?: number;
-  width?: number;
-  height?: number;
-  seed?: number;
-}
-
-interface FalKreaWanInput {
-  prompt: string;
-  negative_prompt?: string;
-  num_frames?: number;
-  fps?: number;
-  width?: number;
-  height?: number;
-  seed?: number;
-}
-
-function buildFalInput(
-  job: VideoGenerationJobData
-): FalKlingInput | FalWanInput | FalLongcatInput | FalLtxvInput | FalKreaWanInput {
-  const dims = RESOLUTION_DIMENSIONS[job.resolution] ?? { width: 854, height: 480 };
-  const fps = 24;
-  const numFrames = job.durationSeconds * fps;
+  const base: FalBasicInput = { prompt: job.prompt };
+  if (job.negativePrompt) base.negative_prompt = job.negativePrompt;
+  if (job.seed) base.seed = job.seed;
 
   switch (job.model) {
+    // ── Kling family (fixed duration, aspect-ratio based) ───────────────────
     case "fal-ai/kling-video/v3/pro/text-to-video":
-    case "fal-ai/kling-video/v2.6/pro/text-to-video": {
-      const input: FalKlingInput = {
-        prompt: job.prompt,
-        // Kling supports 5s or 10s durations
+    case "fal-ai/kling-video/v3/standard/text-to-video":
+    case "fal-ai/kling-video/v2.6/pro/text-to-video":
+    case "fal-ai/kling-video/o3/pro/text-to-video":
+    case "fal-ai/kling-video/o3/standard/text-to-video":
+      return {
+        ...base,
         duration: job.durationSeconds <= 5 ? 5 : 10,
         aspect_ratio: job.aspectRatio,
-        seed: job.seed,
         motion_strength: job.motionStrength,
+        ...(job.referenceImageUrl ? { image_url: job.referenceImageUrl } : {}),
       };
-      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
-      if (job.referenceImageUrl) input.image_url = job.referenceImageUrl;
-      return input;
-    }
 
-    case "fal-ai/wan/v2.2-a14b/image-to-video": {
-      const input: FalWanInput = {
-        prompt: job.prompt,
-        num_frames: numFrames,
+    case "fal-ai/kling-video/v2.5-turbo/standard/image-to-video":
+      return {
+        ...base,
+        duration: job.durationSeconds,
+        aspect_ratio: job.aspectRatio,
+        ...(job.referenceImageUrl ? { image_url: job.referenceImageUrl } : {}),
+      };
+
+    // ── WAN / Krea family (frame-based) ─────────────────────────────────────
+    case "fal-ai/wan/v2.2-a14b/image-to-video":
+    case "fal-ai/wan/v2.2-a14b/text-to-video": {
+      const fps = 16;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
         fps,
         width: dims.width,
         height: dims.height,
         aspect_ratio: job.aspectRatio,
-        seed: job.seed,
         motion_strength: job.motionStrength,
+        ...(job.referenceImageUrl ? { image_url: job.referenceImageUrl } : {}),
       };
-      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
-      if (job.referenceImageUrl) input.image_url = job.referenceImageUrl;
-      return input;
     }
 
-    case "fal-ai/ltxv-13b-098-distilled": {
-      // LTXV model: billed at 24 fps
-      const input: FalLtxvInput = {
-        prompt: job.prompt,
-        num_frames: numFrames,
+    case "fal-ai/wan/v2.2-5b/text-to-video/distill":
+    case "fal-ai/wan/v2.2-5b/text-to-video/fast-wan": {
+      // Flat-rate, short-form; pass standard frames at 16 fps
+      const fps = 16;
+      return {
+        ...base,
+        num_frames: Math.min(job.durationSeconds, 5) * fps,
         fps,
         width: dims.width,
         height: dims.height,
-        seed: job.seed,
       };
-      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
-      return input;
     }
 
-    case "fal-ai/krea-wan-14b/text-to-video": {
-      // Krea WAN model: video seconds calculated at 16 fps
-      const kreaFps = 16;
-      const input: FalKreaWanInput = {
-        prompt: job.prompt,
-        num_frames: job.durationSeconds * kreaFps,
-        fps: kreaFps,
+    case "fal-ai/wan-25-preview/text-to-video":
+    case "wan/v2.6/text-to-video": {
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
         width: dims.width,
         height: dims.height,
-        seed: job.seed,
       };
-      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
-      return input;
     }
 
-    case "fal-ai/longcat-video/distilled/text-to-video/720p": {
-      // Longcat 720p: 30 fps
-      const longcatFps = 30;
-      const input: FalLongcatInput = {
-        prompt: job.prompt,
-        num_frames: job.durationSeconds * longcatFps,
-        fps: longcatFps,
+    // ── Krea WAN 14B (16 fps) ────────────────────────────────────────────────
+    case "fal-ai/krea-wan-14b/text-to-video": {
+      const fps = 16;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    // ── LTXV / LTX family (24 fps) ───────────────────────────────────────────
+    case "fal-ai/ltxv-13b-098-distilled":
+    case "fal-ai/ltxv-13b-098-distilled/multiconditioning":
+    case "fal-ai/ltx-2/text-to-video/fast":
+    case "fal-ai/ltx-2.3/text-to-video/fast":
+    case "fal-ai/ltx-2-19b/distilled/text-to-video":
+    case "fal-ai/ltx-2-19b/distilled/text-to-video/lora": {
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    // ── Longcat family ────────────────────────────────────────────────────────
+    case "fal-ai/longcat-video/distilled/text-to-video/720p":
+    case "fal-ai/longcat-video/text-to-video/720p": {
+      const fps = 30;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
         width: 1280,
         height: 720,
-        seed: job.seed,
       };
-      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
-      return input;
     }
 
-    // Free tier model: longcat 480p
-    case "fal-ai/longcat-video/distilled/text-to-video/480p":
-    default: {
-      const input: FalLongcatInput = {
-        prompt: job.prompt,
-        num_frames: numFrames,
+    case "fal-ai/longcat-video/text-to-video/480p":
+    case "fal-ai/longcat-video/distilled/text-to-video/480p": {
+      const fps = 15;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
         fps,
         width: 854,
         height: 480,
-        seed: job.seed,
       };
-      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
-      return input;
+    }
+
+    // ── Pixverse family (fixed durations: 5/8/10s) ───────────────────────────
+    case "fal-ai/pixverse/v5/text-to-video":
+    case "fal-ai/pixverse/v5.5/text-to-video":
+    case "fal-ai/pixverse/v5.6/text-to-video": {
+      const allowedDurations = [5, 8, 10];
+      const dur = allowedDurations.reduce((prev, curr) =>
+        Math.abs(curr - job.durationSeconds) < Math.abs(prev - job.durationSeconds) ? curr : prev
+      );
+      return {
+        ...base,
+        duration: dur,
+        width: dims.width,
+        height: dims.height,
+        aspect_ratio: job.aspectRatio,
+      };
+    }
+
+    // ── Vidu Q3 Turbo ────────────────────────────────────────────────────────
+    case "fal-ai/vidu/q3/text-to-video/turbo": {
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    // ── Cosmos Predict 2.5 (API produces a fixed 5-second clip) ──────────────
+    // Cosmos generates exactly 5s regardless of durationSeconds. The credit cost
+    // is calculated based on the 5s fixed output, so billing matches actual output.
+    case "fal-ai/cosmos-predict-2.5/distilled/text-to-video": {
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: 5 * fps, // fixed 5-second output
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    // ── Hunyuan Video v1.5 ───────────────────────────────────────────────────
+    case "fal-ai/hunyuan-video-v1.5/text-to-video": {
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    // ── Kandinsky 5 (API supports only 5s or 10s; nearest duration is chosen) ─
+    case "fal-ai/kandinsky5/text-to-video":
+    case "fal-ai/kandinsky5/text-to-video/distill":
+      return {
+        ...base,
+        duration: job.durationSeconds <= 5 ? 5 : 10,
+        width: 768,
+        height: 512,
+      };
+
+    // ── MiniMax Hailuo 2.3 (API supports only 6s or 10s; nearest is chosen) ─
+    case "fal-ai/minimax/hailuo-2.3/standard/text-to-video":
+      return {
+        ...base,
+        duration: job.durationSeconds <= 6 ? 6 : 10,
+        width: dims.width,
+        height: dims.height,
+      };
+
+    // ── Seedance (token-based, standard frame counts) ─────────────────────────
+    case "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video":
+    case "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
+      const fps = 30;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    // ── HeyGen / Avatar (prompt-driven, optional image) ──────────────────────
+    case "fal-ai/heygen/avatar3/digital-twin":
+    case "fal-ai/heygen/v2/video-agent":
+    case "argil/avatars/text-to-video":
+      return {
+        ...base,
+        duration: job.durationSeconds,
+        ...(job.referenceImageUrl ? { image_url: job.referenceImageUrl } : {}),
+      };
+
+    // ── xAI Grok Anime (6s at 24 fps) ────────────────────────────────────────
+    case "xai/grok-imagine-video/text-to-video":
+      return {
+        ...base,
+        duration: 6,
+        width: dims.width,
+        height: dims.height,
+      };
+
+    // ── VEED Fabric ───────────────────────────────────────────────────────────
+    case "veed/fabric-1.0/text": {
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
+    }
+
+    default: {
+      // Safe fallback: 24 fps with provided dimensions
+      const fps = 24;
+      return {
+        ...base,
+        num_frames: job.durationSeconds * fps,
+        fps,
+        width: dims.width,
+        height: dims.height,
+      };
     }
   }
 }

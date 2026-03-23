@@ -4,14 +4,54 @@ export * from "./agents";
 export type SubscriptionTier = "free" | "creator" | "pro" | "studio";
 export type GenerationStatus = "pending" | "queued" | "processing" | "completed" | "failed" | "cancelled";
 export type VideoResolution = "480p" | "720p" | "1080p";
-export type VideoModel = 
+export type VideoModel =
+  // ── Longcat family ─────────────────────────────────────────────────────────
   | "fal-ai/longcat-video/distilled/text-to-video/480p"
   | "fal-ai/longcat-video/distilled/text-to-video/720p"
+  | "fal-ai/longcat-video/text-to-video/480p"
+  | "fal-ai/longcat-video/text-to-video/720p"
+  // ── LTXV / LTX family ──────────────────────────────────────────────────────
   | "fal-ai/ltxv-13b-098-distilled"
+  | "fal-ai/ltxv-13b-098-distilled/multiconditioning"
+  | "fal-ai/ltx-2/text-to-video/fast"
+  | "fal-ai/ltx-2.3/text-to-video/fast"
+  | "fal-ai/ltx-2-19b/distilled/text-to-video"
+  | "fal-ai/ltx-2-19b/distilled/text-to-video/lora"
+  // ── Wan / Krea family ──────────────────────────────────────────────────────
   | "fal-ai/krea-wan-14b/text-to-video"
+  | "fal-ai/wan-25-preview/text-to-video"
   | "fal-ai/wan/v2.2-a14b/image-to-video"
+  | "fal-ai/wan/v2.2-a14b/text-to-video"
+  | "fal-ai/wan/v2.2-5b/text-to-video/distill"
+  | "fal-ai/wan/v2.2-5b/text-to-video/fast-wan"
+  | "wan/v2.6/text-to-video"
+  // ── Kling family ───────────────────────────────────────────────────────────
   | "fal-ai/kling-video/v2.6/pro/text-to-video"
-  | "fal-ai/kling-video/v3/pro/text-to-video";
+  | "fal-ai/kling-video/v2.5-turbo/standard/image-to-video"
+  | "fal-ai/kling-video/v3/pro/text-to-video"
+  | "fal-ai/kling-video/v3/standard/text-to-video"
+  | "fal-ai/kling-video/o3/pro/text-to-video"
+  | "fal-ai/kling-video/o3/standard/text-to-video"
+  // ── Pixverse family ────────────────────────────────────────────────────────
+  | "fal-ai/pixverse/v5/text-to-video"
+  | "fal-ai/pixverse/v5.5/text-to-video"
+  | "fal-ai/pixverse/v5.6/text-to-video"
+  // ── ByteDance / Seedance ───────────────────────────────────────────────────
+  | "fal-ai/bytedance/seedance/v1/pro/fast/text-to-video"
+  | "fal-ai/bytedance/seedance/v1.5/pro/text-to-video"
+  // ── HeyGen / Avatar ────────────────────────────────────────────────────────
+  | "fal-ai/heygen/avatar3/digital-twin"
+  | "fal-ai/heygen/v2/video-agent"
+  | "argil/avatars/text-to-video"
+  // ── Other providers ────────────────────────────────────────────────────────
+  | "fal-ai/cosmos-predict-2.5/distilled/text-to-video"
+  | "fal-ai/hunyuan-video-v1.5/text-to-video"
+  | "fal-ai/minimax/hailuo-2.3/standard/text-to-video"
+  | "fal-ai/kandinsky5/text-to-video"
+  | "fal-ai/kandinsky5/text-to-video/distill"
+  | "fal-ai/vidu/q3/text-to-video/turbo"
+  | "xai/grok-imagine-video/text-to-video"
+  | "veed/fabric-1.0/text";
 
 export interface User {
   id: string;
