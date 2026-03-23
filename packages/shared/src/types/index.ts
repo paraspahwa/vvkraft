@@ -78,7 +78,11 @@ export interface TierLimits {
   characterConsistency: boolean;
   priorityQueue: boolean;
   monthlyPriceUsd: number;
+  /** Monthly price for India region (INR) */
+  monthlyPriceInr: number;
   includedCredits: number;
+  /** Included credits for India region plans (PPP-adjusted, lower than global) */
+  includedCreditsIndia: number;
   /** Maximum duration (seconds) allowed for long-form video generation; 0 = not available */
   longVideoMaxDurationSeconds: number;
 }
@@ -193,8 +197,16 @@ export interface PricingPlan {
   name: string;
   monthlyPriceUsd: number;
   yearlyPriceUsd: number;
+  /** Monthly price for India region (INR) */
+  monthlyPriceInr: number;
+  /** Per-month price when billed yearly for India region (INR) */
+  yearlyPriceInr: number;
   razorpayPlanIdMonthly: string | null;
   razorpayPlanIdYearly: string | null;
+  /** Razorpay plan ID for India monthly billing (INR) */
+  razorpayPlanIdMonthlyInr: string | null;
+  /** Razorpay plan ID for India yearly billing (INR) */
+  razorpayPlanIdYearlyInr: string | null;
   features: string[];
   limits: TierLimits;
   highlighted: boolean;

@@ -1,4 +1,4 @@
-# VideoForge — Complete Cost Analysis
+# VideoForge — Complete Cost Analysis & Profitability Plan
 
 > **Source of truth:** All figures are derived directly from the source files listed in each section. Primary references are `packages/shared/src/utils/pricing.ts`, `apps/web/lib/pricing.ts`, and `apps/web/server/routers/billing.ts`.
 
@@ -6,54 +6,115 @@
 
 ## Table of Contents
 
-1. [Credit System](#1-credit-system)
-2. [Subscription Plans](#2-subscription-plans)
-3. [Credit Packs (Top-ups)](#3-credit-packs-top-ups)
-4. [AI Model Pricing](#4-ai-model-pricing)
-5. [Feature-Specific Costs](#5-feature-specific-costs)
-6. [Tier Limits & Constraints](#6-tier-limits--constraints)
-7. [Queue Priority System](#7-queue-priority-system)
-8. [Cost Examples & Calculations](#8-cost-examples--calculations)
-9. [Infrastructure & Third-Party Services](#9-infrastructure--third-party-services)
-10. [Billing & Payment Flow](#10-billing--payment-flow)
-11. [Credit Transaction Tracking](#11-credit-transaction-tracking)
-12. [Cost-Per-Use-Case Scenarios](#12-cost-per-use-case-scenarios)
-13. [Environment Variables for Billing](#13-environment-variables-for-billing)
-14. [Key Source Files](#14-key-source-files)
+1. [Executive Summary — Profitability Strategy](#1-executive-summary--profitability-strategy)
+2. [Credit System & Margin Model](#2-credit-system--margin-model)
+3. [Subscription Plans — Global (USD)](#3-subscription-plans--global-usd)
+4. [Subscription Plans — India (INR)](#4-subscription-plans--india-inr)
+5. [Credit Packs (Top-ups) — Global & India](#5-credit-packs-top-ups--global--india)
+6. [AI Model Pricing](#6-ai-model-pricing)
+7. [Audio-on-Video Feature & Pricing](#7-audio-on-video-feature--pricing)
+8. [Feature-Specific Costs](#8-feature-specific-costs)
+9. [Tier Limits & Constraints](#9-tier-limits--constraints)
+10. [Queue Priority System](#10-queue-priority-system)
+11. [Profitability Analysis — Global Plans](#11-profitability-analysis--global-plans)
+12. [Profitability Analysis — India Plans](#12-profitability-analysis--india-plans)
+13. [Credit Pack Profitability](#13-credit-pack-profitability)
+14. [Cost Examples & Calculations](#14-cost-examples--calculations)
+15. [Infrastructure & Third-Party Services](#15-infrastructure--third-party-services)
+16. [Billing & Payment Flow](#16-billing--payment-flow)
+17. [Credit Transaction Tracking](#17-credit-transaction-tracking)
+18. [Cost-Per-Use-Case Scenarios](#18-cost-per-use-case-scenarios)
+19. [Revenue Projections](#19-revenue-projections)
+20. [Environment Variables for Billing](#20-environment-variables-for-billing)
+21. [Key Source Files](#21-key-source-files)
 
 ---
 
-## 1. Credit System
+## 1. Executive Summary — Profitability Strategy
 
-> **Source:** `packages/shared/src/utils/pricing.ts` — `CREDIT_VALUE_USD`
+### Problem Identified
 
-| Constant | Value |
+The previous pricing model had **zero margin** on API costs:
+
+- 1 credit = $0.10 and credits were calculated at 1:1 with fal.ai API cost
+- Included credits equalled subscription price in value ($19 plan → $19 API credits)
+- Bulk credit packs gave up to 33% discount → **negative margin** on heavy users
+
+### Solution: Platform Margin Multiplier
+
+A **2.5× platform margin multiplier** is applied to all credit calculations:
+
+```
+Credits = ceil(API_COST_USD × 2.5 / $0.10)
+```
+
+| Metric | Before | After |
+|---|:---:|:---:|
+| Effective API cost per credit | $0.10 | **$0.04** |
+| Gross margin per credit | 0% | **60%** |
+| Worst-case Studio plan margin | 3% | **60%** |
+| Bulk credit pack (1500) margin | **−44%** (loss) | **40%** |
+
+### Dual-Region Strategy
+
+| Aspect | Global (USD) | India (INR) |
+|---|---|---|
+| Pricing | Full USD pricing | PPP-adjusted ~50% lower |
+| Included credits | Full allocation | Reduced (proportional to price) |
+| Margin target | ~60% | ~58% |
+| Payment currency | USD | INR |
+
+### Audio-on-Video
+
+All paid plans now include audio generation. Models that produce audio cost **1.5× credits** (audio surcharge) to cover the higher API rate.
+
+---
+
+## 2. Credit System & Margin Model
+
+> **Source:** `packages/shared/src/utils/pricing.ts` — `CREDIT_VALUE_USD`, `PLATFORM_MARGIN_MULTIPLIER`, `AUDIO_SURCHARGE_MULTIPLIER`
+
+| Constant | Value | Purpose |
+|---|---|---|
+| `CREDIT_VALUE_USD` | **$0.10** | User-facing value of 1 credit |
+| `PLATFORM_MARGIN_MULTIPLIER` | **2.5** | Markup on API cost before converting to credits |
+| `AUDIO_SURCHARGE_MULTIPLIER` | **1.5** | Extra cost for audio-enabled generation |
+
+### Credit Calculation Formula
+
+```
+Base Credits = ceil(MODEL_COST_PER_SECOND[model] × duration_s × 2.5 / $0.10)
+```
+
+With audio enabled:
+```
+Audio Credits = ceil(Base_Credits × 1.5)
+```
+
+### Margin Economics
+
+| Item | Value |
 |---|---|
-| 1 Credit (USD) | **$0.10** |
+| User pays per credit | $0.10 |
+| API cost burned per credit | $0.04 (= $0.10 / 2.5) |
+| **Gross margin per credit** | **$0.06 (60%)** |
 
-**How credits are consumed:**
-
-```
-Cost (USD)      = MODEL_COST_PER_SECOND[model] × duration_seconds
-Credits charged = ceil(Cost USD / $0.10)
-```
-
-All credit deductions happen **before** generation starts. On generation or upscale failure the credits are **fully refunded**.
+All credit deductions happen **before** generation starts. On failure the credits are **fully refunded**.
 
 ---
 
-## 2. Subscription Plans
+## 3. Subscription Plans — Global (USD)
 
 > **Source:** `apps/web/lib/pricing.ts` — `PRICING_PLANS`, `packages/shared/src/utils/pricing.ts` — `TIER_LIMITS`
 
 ### Monthly Pricing
 
-| Plan | Monthly Price | Included Credits/Month | Videos/Month | Max Duration | Max Resolution |
-|------|:---:|:---:|:---:|:---:|:---:|
-| **Free** | $0 | 0 | 3/day limit | 5 s | 480p |
-| **Creator** | $19 | 190 | 50 | 10 s (60 s long-form) | 720p |
-| **Pro** | $49 | 490 | 200 | 15 s (2 min long-form) | 1080p |
-| **Studio** | $149 | 1,490 | Unlimited | 15 s (2 min long-form) | 1080p |
+| Plan | Monthly Price | Included Credits/Month | Credits API Value | Gross Margin |
+|------|:---:|:---:|:---:|:---:|
+| **Free** | $0 | 0 | $0 | — |
+| **Creator** | $19 | 190 | $7.60 | **$11.40 (60%)** |
+| **Pro** | $49 | 490 | $19.60 | **$29.40 (60%)** |
+| **Studio** | $149 | 1,490 | $59.60 | **$89.40 (60%)** |
 
 ### Yearly Pricing (billed per month, charged annually)
 
@@ -64,152 +125,187 @@ All credit deductions happen **before** generation starts. On generation or upsc
 | **Pro** | $39/mo | $468/yr | **$120/yr (20% off)** |
 | **Studio** | $119/mo | $1,428/yr | **$360/yr (20% off)** |
 
-### Razorpay Subscription Configuration
+### Yearly Plan Margins
 
-Monthly plans are configured with `total_count: 120` (indefinite renewal). Yearly plans use `total_count: 10` (charges once per year for 10 years). Plan IDs are injected via environment variables (`RAZORPAY_PLAN_*`).
-
----
-
-## 3. Credit Packs (Top-ups)
-
-> **Source:** `apps/web/server/routers/billing.ts` — `CREDIT_PACKS`
-
-One-time purchases that **never expire** and stack on top of subscription credits.
-
-| Pack | Price (USD) | Price per Credit | Effective Savings |
+| Plan | Annual Revenue | Annual API Value | Annual Margin |
 |------|:---:|:---:|:---:|
-| 50 credits | $5.00 | $0.100 | — (base rate) |
-| 150 credits | $14.00 | $0.093 | 7% off |
-| 500 credits | $40.00 | $0.080 | 20% off |
-| 1,500 credits | $100.00 | $0.067 | 33% off |
+| **Creator** | $180 | $91.20 | **$88.80 (49%)** |
+| **Pro** | $468 | $235.20 | **$232.80 (50%)** |
+| **Studio** | $1,428 | $715.20 | **$712.80 (50%)** |
+
+Even yearly plans (with 20% user discount) maintain **~50% gross margin**.
 
 ---
 
-## 4. AI Model Pricing
+## 4. Subscription Plans — India (INR)
+
+> PPP-adjusted pricing targeting the Indian market (~50% below USD equivalent)
+
+### Monthly Pricing
+
+| Plan | Monthly Price (INR) | USD Equivalent | Included Credits | Credits API Value | Gross Margin |
+|------|:---:|:---:|:---:|:---:|:---:|
+| **Free** | ₹0 | $0 | 0 | $0 | — |
+| **Creator** | ₹799 | ~$9.50 | 100 | $4.00 | **$5.50 (58%)** |
+| **Pro** | ₹1,999 | ~$23.80 | 250 | $10.00 | **$13.80 (58%)** |
+| **Studio** | ₹5,999 | ~$71.40 | 750 | $30.00 | **$41.40 (58%)** |
+
+### Yearly Pricing (INR, per month billed annually)
+
+| Plan | Monthly Equivalent | Annual Total | Annual Savings vs Monthly |
+|------|:---:|:---:|:---:|
+| **Free** | ₹0 | ₹0 | — |
+| **Creator** | ₹599/mo | ₹7,188/yr | **₹2,400/yr (25% off)** |
+| **Pro** | ₹1,599/mo | ₹19,188/yr | **₹4,800/yr (20% off)** |
+| **Studio** | ₹4,999/mo | ₹59,988/yr | **₹12,000/yr (17% off)** |
+
+### India vs Global Comparison
+
+| Plan | Global Price | India Price | India Discount | India Credits vs Global |
+|------|:---:|:---:|:---:|:---:|
+| Creator | $19/mo | ₹799 (~$9.50) | 50% | 100 vs 190 (53% of global) |
+| Pro | $49/mo | ₹1,999 (~$23.80) | 51% | 250 vs 490 (51% of global) |
+| Studio | $149/mo | ₹5,999 (~$71.40) | 52% | 750 vs 1,490 (50% of global) |
+
+India users get the **same features, model access, and tier limits** — only the included credit allocation and price are adjusted for purchasing power parity.
+
+---
+
+## 5. Credit Packs (Top-ups) — Global & India
+
+> **Source:** `apps/web/server/routers/billing.ts` — `CREDIT_PACKS`, `CREDIT_PACKS_INR`
+
+### Global Credit Packs (USD)
+
+| Pack | Price (USD) | Price per Credit | API Cost per Credit | Margin per Credit | Pack Margin |
+|------|:---:|:---:|:---:|:---:|:---:|
+| 50 credits | $5.00 | $0.100 | $0.040 | $0.060 | **60%** |
+| 150 credits | $14.00 | $0.093 | $0.040 | $0.053 | **57%** |
+| 500 credits | $40.00 | $0.080 | $0.040 | $0.040 | **50%** |
+| 1,500 credits | $100.00 | $0.067 | $0.040 | $0.027 | **40%** |
+
+### India Credit Packs (INR)
+
+| Pack | Price (INR) | USD Equivalent | Price per Credit | Margin per Credit | Pack Margin |
+|------|:---:|:---:|:---:|:---:|:---:|
+| 50 credits | ₹399 | ~$4.75 | $0.095 | $0.055 | **58%** |
+| 150 credits | ₹999 | ~$11.89 | $0.079 | $0.039 | **50%** |
+| 500 credits | ₹2,999 | ~$35.70 | $0.071 | $0.031 | **44%** |
+| 1,500 credits | ₹7,499 | ~$89.27 | $0.060 | $0.020 | **33%** |
+
+All packs are **profitable** at every tier and region.
+
+---
+
+## 6. AI Model Pricing
 
 > **Source:** `packages/shared/src/utils/pricing.ts` — `MODEL_COST_PER_SECOND`, `VIDEO_MODEL_CATALOG`
 
-All 40+ models are billed via **fal.ai** on a per-second basis. The table below lists the representative rate at standard/720p quality used for credit calculation.
+All 40+ models are billed via **fal.ai** on a per-second basis. The table below lists the representative rate at standard/720p quality. **User-facing credit costs include the 2.5× platform margin.**
 
 ### Longcat Family (Long-Form Optimised)
 
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/longcat-video/distilled/text-to-video/480p` | $0.0050 | Free | ✅ | ❌ |
-| `fal-ai/longcat-video/distilled/text-to-video/720p` | $0.0100 | Creator | ✅ | ❌ |
-| `fal-ai/longcat-video/text-to-video/480p` | $0.0250 | Creator | ✅ | ❌ |
-| `fal-ai/longcat-video/text-to-video/720p` | $0.0400 | Creator | ✅ | ❌ |
+| Model ID | API Cost/s | Credits (5s) | Credits (60s) | Min Tier | Audio |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `fal-ai/longcat-video/distilled/text-to-video/480p` | $0.0050 | 1 | 8 | Free | ❌ |
+| `fal-ai/longcat-video/distilled/text-to-video/720p` | $0.0100 | 2 | 15 | Creator | ❌ |
+| `fal-ai/longcat-video/text-to-video/480p` | $0.0250 | 4 | 38 | Creator | ❌ |
+| `fal-ai/longcat-video/text-to-video/720p` | $0.0400 | 5 | 60 | Creator | ❌ |
 
 ### LTXV / LTX Family
 
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/ltxv-13b-098-distilled` | $0.0200 | Creator | ✅ | ❌ |
-| `fal-ai/ltxv-13b-098-distilled/multiconditioning` | $0.0200 | Creator | ✅ | ❌ |
-| `fal-ai/ltx-2/text-to-video/fast` | $0.0400 | Creator | ✅ | ❌ |
-| `fal-ai/ltx-2.3/text-to-video/fast` | $0.0400 | Creator | ✅ | ❌ |
-| `fal-ai/ltx-2-19b/distilled/text-to-video` | $0.0180 | Creator | ✅ | ❌ |
-| `fal-ai/ltx-2-19b/distilled/text-to-video/lora` | $0.0220 | Creator | ✅ | ❌ |
-
-### WAN / KREA Family
-
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/krea-wan-14b/text-to-video` | $0.0250 | Creator | ✅ | ❌ |
-| `fal-ai/wan-25-preview/text-to-video` | $0.1000 | Pro | ✅ | ❌ |
-| `fal-ai/wan/v2.2-a14b/image-to-video` | $0.0025 | Creator | ❌ | ❌ |
-| `fal-ai/wan/v2.2-a14b/text-to-video` | $0.0800 | Creator | ❌ | ❌ |
-| `fal-ai/wan/v2.2-5b/text-to-video/distill` | $0.0160 | Creator | ❌ | ❌ |
-| `fal-ai/wan/v2.2-5b/text-to-video/fast-wan` | $0.0050 | Creator | ❌ | ❌ |
-| `wan/v2.6/text-to-video` | $0.1000 | Pro | ✅ | ❌ |
+| Model ID | API Cost/s | Credits (5s) | Credits (60s) | Min Tier | Audio |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `fal-ai/ltxv-13b-098-distilled` | $0.0200 | 3 | 30 | Creator | ❌ |
+| `fal-ai/ltx-2.3/text-to-video/fast` | $0.0400 | 5 | 60 | Creator | ✅ |
+| `fal-ai/ltx-2-19b/distilled/text-to-video` | $0.0180 | 3 | 27 | Creator | ❌ |
 
 ### Kling Family (Premium)
 
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
+| Model ID | API Cost/s | Credits (5s) | Credits (15s) | Min Tier | Audio |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `fal-ai/kling-video/v2.6/pro/text-to-video` | $0.0700 | 9 | 27 | Pro | ✅ |
+| `fal-ai/kling-video/v3/standard/text-to-video` | $0.0840 | 11 | 32 | Pro | ✅ |
+| `fal-ai/kling-video/v3/pro/text-to-video` | **$0.2240** | 28 | 84 | Studio | ✅ |
+| `fal-ai/kling-video/o3/standard/text-to-video` | $0.0840 | 11 | 32 | Pro | ✅ |
+| `fal-ai/kling-video/o3/pro/text-to-video` | $0.1120 | 14 | 42 | Studio | ✅ |
+
+### Avatar / UGC Models (with Audio)
+
+| Model ID | API Cost/s | Credits (30s) | Min Tier | Audio |
 |---|:---:|:---:|:---:|:---:|
-| `fal-ai/kling-video/v2.6/pro/text-to-video` | $0.0700 | Pro | ❌ | ❌ |
-| `fal-ai/kling-video/v2.5-turbo/standard/image-to-video` | $0.0420 | Pro | ❌ | ❌ |
-| `fal-ai/kling-video/v3/standard/text-to-video` | $0.0840 | Pro | ❌ | ❌ |
-| `fal-ai/kling-video/v3/pro/text-to-video` | **$0.2240** | Studio | ❌ | ❌ |
-| `fal-ai/kling-video/o3/standard/text-to-video` | $0.0840 | Pro | ❌ | ❌ |
-| `fal-ai/kling-video/o3/pro/text-to-video` | $0.1120 | Studio | ❌ | ❌ |
+| `fal-ai/heygen/avatar3/digital-twin` | $0.0340 | 26 | Studio | ✅ |
+| `fal-ai/heygen/v2/video-agent` | $0.0340 | 26 | Studio | ✅ |
+| `argil/avatars/text-to-video` | $0.0225 | 17 | Pro | ✅ |
 
-### Pixverse Family
+### Other Models
 
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/pixverse/v5/text-to-video` | $0.0400 | Pro | ✅ | ❌ |
-| `fal-ai/pixverse/v5.5/text-to-video` | $0.0400 | Pro | ✅ | ❌ |
-| `fal-ai/pixverse/v5.6/text-to-video` | $0.0900 | Studio | ✅ | ❌ |
-
-### Seedance / ByteDance Family
-
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/bytedance/seedance/v1/pro/fast/text-to-video` | $0.0490 | Pro | ❌ | ❌ |
-| `fal-ai/bytedance/seedance/v1.5/pro/text-to-video` | $0.0520 | Studio | ❌ | ✅ |
-
-### Avatar / UGC Models
-
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/heygen/avatar3/digital-twin` | $0.0340 | Studio | ❌ | ✅ |
-| `fal-ai/heygen/v2/video-agent` | $0.0340 | Studio | ❌ | ✅ |
-| `argil/avatars/text-to-video` | $0.0225 | Pro | ❌ | ✅ |
-
-### Other Providers
-
-| Model ID | Cost/Second | Min Tier | Long Video | Audio |
-|---|:---:|:---:|:---:|:---:|
-| `fal-ai/hunyuan-video-v1.5/text-to-video` | **$0.00075** ⭐ cheapest | Creator | ✅ | ❌ |
-| `fal-ai/cosmos-predict-2.5/distilled/text-to-video` | $0.0160 | Creator | ✅ | ❌ |
-| `fal-ai/minimax/hailuo-2.3/standard/text-to-video` | $0.0470 | Pro | ❌ | ❌ |
-| `fal-ai/kandinsky5/text-to-video` | $0.0160 | Creator | ❌ | ❌ |
-| `fal-ai/kandinsky5/text-to-video/distill` | $0.0100 | Creator | ❌ | ❌ |
-| `fal-ai/vidu/q3/text-to-video/turbo` | $0.0770 | Pro | ✅ | ❌ |
-| `xai/grok-imagine-video/text-to-video` | $0.0700 | Studio | ❌ | ❌ |
-| `veed/fabric-1.0/text` | $0.1500 | Studio | ❌ | ❌ |
-
-### Default Model Per Tier
-
-> **Source:** `packages/shared/src/utils/pricing.ts` — `getModelForTier()`
-
-| Tier | Default Model | Cost/Second |
-|------|---|:---:|
-| Free | `fal-ai/longcat-video/distilled/text-to-video/480p` | $0.0050 |
-| Creator | `fal-ai/wan/v2.2-a14b/image-to-video` | $0.0025 |
-| Pro | `fal-ai/kling-video/v2.6/pro/text-to-video` | $0.0700 |
-| Studio | `fal-ai/kling-video/v3/pro/text-to-video` | $0.2240 |
-
-### Default Long-Video Model Per Tier
-
-> **Source:** `packages/shared/src/utils/pricing.ts` — `getLongVideoModelForTier()`
-
-| Tier | Default Long-Video Model |
-|------|---|
-| Free | _(not available)_ |
-| Creator | `fal-ai/longcat-video/distilled/text-to-video/720p` |
-| Pro | `fal-ai/ltxv-13b-098-distilled` |
-| Studio | `fal-ai/krea-wan-14b/text-to-video` |
+| Model ID | API Cost/s | Min Tier | Audio |
+|---|:---:|:---:|:---:|
+| `fal-ai/hunyuan-video-v1.5/text-to-video` | **$0.00075** ⭐ cheapest | Creator | ❌ |
+| `fal-ai/pixverse/v5.5/text-to-video` | $0.0400 | Pro | ✅ |
+| `fal-ai/pixverse/v5.6/text-to-video` | $0.0900 | Studio | ✅ |
+| `fal-ai/bytedance/seedance/v1.5/pro/text-to-video` | $0.0520 | Studio | ✅ |
+| `veed/fabric-1.0/text` | $0.1500 | Studio | ❌ |
 
 ---
 
-## 5. Feature-Specific Costs
+## 7. Audio-on-Video Feature & Pricing
+
+> **Source:** `packages/shared/src/utils/pricing.ts` — `AUDIO_SURCHARGE_MULTIPLIER`, `calculateCreditsCostWithAudio()`
+
+### Audio Surcharge
+
+When a user enables **audio generation** on a supported model, credits cost **1.5× the base rate**.
+
+| Scenario | Formula |
+|---|---|
+| Video only (no audio) | `ceil(API_COST × 2.5 / $0.10)` |
+| Video + Audio | `ceil(ceil(API_COST × 2.5 / $0.10) × 1.5)` |
+
+### Audio Cost Examples
+
+| Model | 5s (no audio) | 5s (with audio) | 15s (no audio) | 15s (with audio) |
+|---|:---:|:---:|:---:|:---:|
+| Kling v2.6 Pro | 9 credits | 14 credits | 27 credits | 41 credits |
+| Kling v3 Standard | 11 credits | 17 credits | 32 credits | 48 credits |
+| LTX-2.3 Fast | 5 credits | 8 credits | 15 credits | 23 credits |
+| Pixverse v5.5 | 5 credits | 8 credits | 15 credits | 23 credits |
+| Seedance v1.5 Pro | 7 credits | 10 credits | 20 credits | 30 credits |
+
+### Models Supporting Audio
+
+| Model | Base API Cost/s | With Audio API Cost/s |
+|---|:---:|:---:|
+| Kling v2.6 Pro | $0.07 | $0.14 |
+| Kling v3 Standard | $0.084 | $0.126–$0.154 |
+| Kling v3 Pro | $0.224 | $0.224 (included) |
+| Kling o3 Standard | $0.084 | $0.112 |
+| Kling o3 Pro | $0.112 | $0.14 |
+| LTX-2.3 Fast | $0.04 | $0.04 (included) |
+| Pixverse v5.5 | $0.04 | +$0.05/clip |
+| Pixverse v5.6 | $0.09 | +$0.45/clip |
+| Seedance v1.5 Pro | $0.052 (no audio $0.026) | $0.052 |
+| HeyGen Avatar3 | $0.034 | $0.034 (included) |
+| HeyGen v2 Agent | $0.034 | $0.034 (included) |
+| Argil Avatars | $0.0225 | $0.0225 (included) |
+
+---
+
+## 8. Feature-Specific Costs
 
 > **Source:** `apps/web/server/routers/upscaler.ts` — `UPSCALE_CREDIT_COST`
 
 ### Video Upscaling (`/upscale`, `fal-ai/video-upscaler`)
 
-| Quality Mode | Credit Cost | USD Equivalent | Availability |
-|---|:---:|:---:|:---:|
-| Standard | **10 credits** | $1.00 | All paid plans |
-| Real-ESRGAN | **25 credits** | $2.50 | Paid plans only (not Free) |
-
-Upscaling credits are deducted before the job is submitted. On failure the full amount is refunded.
+| Quality Mode | Credit Cost | USD Equivalent | API Value | Margin |
+|---|:---:|:---:|:---:|:---:|
+| Standard | **10 credits** | $1.00 | ~$0.40 | 60% |
+| Real-ESRGAN | **25 credits** | $2.50 | ~$1.00 | 60% |
 
 ---
 
-## 6. Tier Limits & Constraints
+## 9. Tier Limits & Constraints
 
 > **Source:** `packages/shared/src/utils/pricing.ts` — `TIER_LIMITS`
 
@@ -230,6 +326,7 @@ Upscaling credits are deducted before the job is submitted. On failure the full 
 | Watermark | ✅ Yes | ❌ No | ❌ No | ❌ No |
 | Motion Control | ❌ | ❌ | ✅ | ✅ Advanced |
 | Character Consistency | ❌ | ✅ | ✅ | ✅ |
+| Audio-on-Video | ❌ | ✅ | ✅ | ✅ |
 | Priority Queue | ❌ | ❌ | ✅ | ✅ |
 | API Access | ❌ | ❌ | ❌ | ✅ |
 | Long-Form Video | ❌ | ✅ (60 s) | ✅ (2 min) | ✅ (2 min) |
@@ -245,7 +342,7 @@ Upscaling credits are deducted before the job is submitted. On failure the full 
 
 ---
 
-## 7. Queue Priority System
+## 10. Queue Priority System
 
 > **Source:** `packages/shared/src/utils/pricing.ts` — `TIER_QUEUE_PRIORITY`
 
@@ -260,131 +357,222 @@ VideoForge uses **BullMQ** with **Redis**. Lower priority numbers are processed 
 
 ---
 
-## 8. Cost Examples & Calculations
+## 11. Profitability Analysis — Global Plans
+
+### Per-Subscriber Unit Economics (Monthly)
+
+| Plan | Revenue | Max API Cost | Infra Cost Est. | **Net Margin** |
+|------|:---:|:---:|:---:|:---:|
+| Creator ($19) | $19.00 | $7.60 | ~$1.00 | **$10.40 (55%)** |
+| Pro ($49) | $49.00 | $19.60 | ~$2.00 | **$27.40 (56%)** |
+| Studio ($149) | $149.00 | $59.60 | ~$5.00 | **$84.40 (57%)** |
+
+### Worst-Case Scenario (User Exhausts All Credits on Most Expensive Model)
+
+| Plan | Credits | Kling v3 Pro Videos (84cr each) | API Cost | Revenue | Margin |
+|------|:---:|:---:|:---:|:---:|:---:|
+| Creator | 190 | 2 videos | $6.72 | $19 | **$12.28 (65%)** |
+| Pro | 490 | 5 videos | $16.80 | $49 | **$32.20 (66%)** |
+| Studio | 1,490 | 17 videos | $57.12 | $149 | **$91.88 (62%)** |
+
+### Best-Case Scenario (User Uses Cheapest Model — Hunyuan v1.5)
+
+| Plan | Credits | Hunyuan Videos (1cr each, 5s) | API Cost | Revenue | Margin |
+|------|:---:|:---:|:---:|:---:|:---:|
+| Creator | 190 | 190 videos | $0.71 | $19 | **$18.29 (96%)** |
+| Pro | 490 | 490 videos | $1.84 | $49 | **$47.16 (96%)** |
+| Studio | 1,490 | 1490 videos | $5.59 | $149 | **$143.41 (96%)** |
+
+---
+
+## 12. Profitability Analysis — India Plans
+
+### Per-Subscriber Unit Economics (Monthly)
+
+| Plan | Revenue (INR) | Revenue (USD) | Max API Cost | **Net Margin** |
+|------|:---:|:---:|:---:|:---:|
+| Creator (₹799) | ₹799 | ~$9.50 | $4.00 | **$5.50 (58%)** |
+| Pro (₹1,999) | ₹1,999 | ~$23.80 | $10.00 | **$13.80 (58%)** |
+| Studio (₹5,999) | ₹5,999 | ~$71.40 | $30.00 | **$41.40 (58%)** |
+
+### India Worst-Case (Kling v3 Pro — 84 credits per 15s video)
+
+| Plan | Credits | Videos | API Cost | Revenue | Margin |
+|------|:---:|:---:|:---:|:---:|:---:|
+| Creator | 100 | 1 video | $3.36 | $9.50 | **$6.14 (65%)** |
+| Pro | 250 | 2 videos | $6.72 | $23.80 | **$17.08 (72%)** |
+| Studio | 750 | 8 videos | $26.88 | $71.40 | **$44.52 (62%)** |
+
+---
+
+## 13. Credit Pack Profitability
+
+### Global (USD) — All Packs Profitable
+
+| Pack | Revenue | Max API Value Burned | Margin | Margin % |
+|------|:---:|:---:|:---:|:---:|
+| 50 credits ($5) | $5.00 | $2.00 | $3.00 | **60%** |
+| 150 credits ($14) | $14.00 | $6.00 | $8.00 | **57%** |
+| 500 credits ($40) | $40.00 | $20.00 | $20.00 | **50%** |
+| 1,500 credits ($100) | $100.00 | $60.00 | $40.00 | **40%** |
+
+### India (INR) — All Packs Profitable
+
+| Pack | Revenue (INR) | Revenue (USD) | Max API Value | Margin | Margin % |
+|------|:---:|:---:|:---:|:---:|:---:|
+| 50 credits (₹399) | ₹399 | ~$4.75 | $2.00 | $2.75 | **58%** |
+| 150 credits (₹999) | ₹999 | ~$11.89 | $6.00 | $5.89 | **50%** |
+| 500 credits (₹2,999) | ₹2,999 | ~$35.70 | $20.00 | $15.70 | **44%** |
+| 1,500 credits (₹7,499) | ₹7,499 | ~$89.27 | $60.00 | $29.27 | **33%** |
+
+---
+
+## 14. Cost Examples & Calculations
 
 ### Formula
 
 ```
-Credits = ceil( MODEL_COST_PER_SECOND[model] × duration_s / 0.10 )
+Base Credits = ceil(MODEL_COST_PER_SECOND[model] × duration_s × PLATFORM_MARGIN_MULTIPLIER / CREDIT_VALUE_USD)
+Audio Credits = ceil(Base_Credits × AUDIO_SURCHARGE_MULTIPLIER)  // only if audio enabled
 ```
 
-### Quick Reference: Credits per Video by Model & Duration
+### Quick Reference: Credits per Video (with 2.5× margin)
 
 | Model | 5 s | 10 s | 15 s | 60 s | 120 s |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Hunyuan v1.5 (cheapest) | 1 | 1 | 1 | 1 | 1 |
-| Longcat Distilled 480p | 1 | 1 | 1 | 3 | 6 |
-| Longcat Distilled 720p | 1 | 1 | 2 | 6 | 12 |
-| WAN 2.2 image-to-video | 1 | 1 | 1 | 2 | 3 |
-| LTXV 13B (Distilled) | 1 | 2 | 3 | 12 | 24 |
-| Kling v2.6 Pro | 4 | 7 | 11 | — | — |
-| Kling v3 Standard | 5 | 9 | 13 | — | — |
-| Kling o3 Pro | 6 | 12 | 17 | — | — |
-| Kling v3 Pro (premium) | 12 | 23 | 34 | — | — |
-| VEED Fabric 1.0 | 8 | 15 | 23 | — | — |
+| Hunyuan v1.5 (cheapest) | 1 | 1 | 1 | 2 | 3 |
+| Longcat Distilled 480p | 1 | 2 | 2 | 8 | 15 |
+| Longcat Distilled 720p | 2 | 3 | 4 | 15 | 30 |
+| WAN 2.2 image-to-video | 1 | 1 | 1 | 4 | 8 |
+| LTXV 13B (Distilled) | 3 | 5 | 8 | 30 | 60 |
+| Kling v2.6 Pro | 9 | 18 | 27 | — | — |
+| Kling v3 Standard | 11 | 21 | 32 | — | — |
+| Kling o3 Pro | 14 | 28 | 42 | — | — |
+| Kling v3 Pro (premium) | 28 | 56 | 84 | — | — |
+| VEED Fabric 1.0 | 19 | 38 | 57 | — | — |
 
-_`—` indicates the model does not support that duration or it exceeds the tier's long-video cap._
+### Quick Reference: Credits per Video with Audio (1.5× surcharge)
 
-### Example 1: Free Tier — Maximum Usage
+| Model | 5 s | 10 s | 15 s |
+|---|:---:|:---:|:---:|
+| Kling v2.6 Pro (audio) | 14 | 27 | 41 |
+| Kling v3 Standard (audio) | 17 | 32 | 48 |
+| LTX-2.3 Fast (audio) | 8 | 15 | 23 |
+| Pixverse v5.5 (audio) | 8 | 15 | 23 |
+| Seedance v1.5 Pro (audio) | 10 | 20 | 30 |
 
-- **Task:** 3 × 5 s videos at 480p (daily limit)
-- **Model:** `fal-ai/longcat-video/distilled/text-to-video/480p` ($0.005/s, forced by tier)
-- **Cost:** ceil($0.005 × 5 / $0.10) = 1 credit × 3 = **3 credits**
-- **Available credits:** 0 (Free tier has no included credits — must purchase a pack)
-- **Minimum spend:** $5.00 (50-credit pack)
-
-### Example 2: Creator Tier — Light Monthly Usage
+### Example 1: Creator Tier — Light Usage (Global)
 
 - **Plan:** Creator — $19/month — 190 credits
-- **Task:** 20 × 10 s short clips using default model (WAN 2.2)
-- **Cost:** ceil($0.0025 × 10 / $0.10) = 1 credit × 20 = **20 credits**
-- **Remaining credits:** 170 credits — well within plan
+- **Task:** 20 × 10 s short clips using default model (WAN 2.2 i2v, $0.0025/s)
+- **Per video:** ceil(0.0025 × 10 × 2.5 / 0.10) = 1 credit
+- **Total:** 20 credits
+- **API cost:** $0.50
+- **Remaining credits:** 170
+- **Margin on this user:** $19 − $0.50 = **$18.50 (97%)**
 
-### Example 3: Pro Tier — Heavy Content Creator
+### Example 2: Pro Tier — Heavy Content Creator with Audio (Global)
 
 - **Plan:** Pro — $49/month — 490 credits
-- **Task:** 30 × 15 s clips using Kling v2.6 Pro ($0.07/s)
-- **Per video:** ceil($0.07 × 15 / $0.10) = **11 credits**
-- **Total:** 11 × 30 = 330 credits
-- **Remaining:** 490 − 330 = 160 credits
-- **Headroom for extras:** ~14 additional videos or upscaling
+- **Task:** 30 × 15 s clips using Kling v2.6 Pro with audio
+- **Per video (audio):** 41 credits
+- **Total:** 41 × 30 = 1,230 credits (exceeds 490 → need top-up)
+- **Included usage:** 490 / 41 ≈ 11 videos, API cost: 11 × $0.07 × 15 = $11.55
+- **Margin on included:** $49 − $11.55 = **$37.45 (76%)**
+- **Top-up needed:** 740 credits → buy 500-pack ($40) + 150-pack ($14) = $54
 
-### Example 4: Studio Tier — Production Workflow
+### Example 3: Studio Tier — Production Workflow (Global)
 
 - **Plan:** Studio — $149/month — 1,490 credits
-- **Task A:** 10 × 15 s premium videos using Kling v3 Pro ($0.224/s)
-  - Per video: ceil($0.224 × 15 / $0.10) = 34 credits × 10 = **340 credits**
-- **Task B:** 5 × 2-min long-form videos using Krea WAN 14B ($0.025/s)
-  - Per video: ceil($0.025 × 120 / $0.10) = 30 credits × 5 = **150 credits**
+- **Task A:** 10 × 15 s premium videos using Kling v3 Pro ($0.224/s) — 84 credits × 10 = **840 credits**
+- **Task B:** 5 × 2-min long-form using Krea WAN 14B ($0.025/s) — ceil(0.025 × 120 × 2.5 / 0.10) = 75 credits × 5 = **375 credits**
 - **Task C:** 5 × Real-ESRGAN upscales = 5 × 25 = **125 credits**
-- **Total usage:** 340 + 150 + 125 = **615 credits**
-- **Remaining:** 1,490 − 615 = **875 credits**
+- **Total usage:** 840 + 375 + 125 = **1,340 credits** (within plan)
+- **Total API cost:** (10 × $3.36) + (5 × $3.00) + (~$5.00) = $53.60
+- **Margin:** $149 − $53.60 = **$95.40 (64%)**
 
-### Example 5: Yearly Plan Savings
+### Example 4: India Creator — Social Media Use
 
-| Plan | Monthly Total | Annual Total | Annual Savings |
-|------|:---:|:---:|:---:|
-| Creator | $19 × 12 = $228 | $180 | **$48** |
-| Pro | $49 × 12 = $588 | $468 | **$120** |
-| Studio | $149 × 12 = $1,788 | $1,428 | **$360** |
+- **Plan:** Creator India — ₹799/month — 100 credits
+- **Task:** 15 × 10 s clips using WAN 2.2 (1 credit each)
+- **Total:** 15 credits, API cost: $0.375
+- **Margin:** $9.50 − $0.375 = **$9.13 (96%)**
+
+### Example 5: India Pro — Video Agency
+
+- **Plan:** Pro India — ₹1,999/month — 250 credits
+- **Task:** 20 × 10 s clips using LTXV 13B (5 credits each)
+- **Total:** 100 credits, API cost: 20 × $0.20 = $4.00
+- **Margin:** $23.80 − $4.00 = **$19.80 (83%)**
 
 ---
 
-## 9. Infrastructure & Third-Party Services
+## 15. Infrastructure & Third-Party Services
 
 ### AI API
 
 | Service | Purpose | Pricing Model |
 |---------|---------|---|
-| **fal.ai** | All AI video generation (40+ models) | Per-second usage (see Section 4) |
+| **fal.ai** | All AI video generation (40+ models) | Per-second usage (see Section 6) |
 
 ### Platform Infrastructure
 
-| Service | Purpose | Estimated Pricing |
+| Service | Purpose | Estimated Monthly Cost |
 |---------|---------|---|
-| **Firebase Authentication** | User sign-in & session management | Free up to 10k/month then $0.0055/MAU |
-| **Firestore** | User profiles, jobs, transactions, credit ledger | Free tier: 1 GB storage, 50k reads/day; then $0.06/GB, $0.06/100k reads |
-| **Cloudflare R2** | Video file storage (generated + upscale input/output) | $0.015/GB stored · $0.01/10k GET requests · Free egress |
-| **Redis / BullMQ** | Job queue for video generation and upscaling | Self-hosted: server cost only; Upstash: ~$1/100k commands |
+| **Firebase Authentication** | User sign-in & session management | Free up to 10k MAU, then $0.0055/MAU |
+| **Firestore** | User profiles, jobs, transactions, credit ledger | Free tier: 1 GB, 50k reads/day; then $0.06/GB + $0.06/100k reads |
+| **Cloudflare R2** | Video file storage | $0.015/GB stored · $0.01/10k GET · Free egress |
+| **Redis / BullMQ** | Job queue | Self-hosted: server cost; Upstash: ~$1/100k commands |
+| **Vercel / Hosting** | Next.js deployment | $20–$150/mo depending on scale |
+
+### Estimated Infrastructure Cost per User
+
+| User Count | Est. Monthly Infra Cost | Per-User Cost |
+|:---:|:---:|:---:|
+| 100 | ~$50 | $0.50 |
+| 1,000 | ~$200 | $0.20 |
+| 10,000 | ~$1,500 | $0.15 |
+| 50,000 | ~$5,000 | $0.10 |
 
 ### Payment Processing
 
 | Service | Purpose | Pricing Model |
 |---------|---------|---|
-| **Razorpay** | Subscription billing & one-time credit purchases | ~2% + ₹3 per transaction |
+| **Razorpay** | Subscription billing & credit purchases | ~2% + ₹3 per txn (India) / ~2.5% (international) |
 
 ---
 
-## 10. Billing & Payment Flow
+## 16. Billing & Payment Flow
 
 > **Source:** `apps/web/server/routers/billing.ts`, `apps/web/app/api/webhooks/razorpay/route.ts`
 
-### Subscription Lifecycle
+### Subscription Lifecycle (supports both USD and INR)
 
 ```
-User selects plan → createSubscriptionCheckout → Razorpay subscription created
-→ User pays → verifySubscriptionPayment → HMAC signature verified
-→ Tier updated in Firestore → Included credits added to balance
-→ Webhook: subscription.charged (each renewal) → Credits added monthly/yearly
-→ Webhook: subscription.cancelled → subscriptionId cleared in Firestore
-→ Webhook: payment.failed → Logged for monitoring
+User selects plan + region → createSubscriptionCheckout(tier, period, region)
+→ Razorpay subscription created (USD or INR plan ID)
+→ User pays → verifySubscriptionPayment(region) → HMAC verified
+→ Tier updated → Credits added (global or India allocation)
+→ Webhook: subscription.charged → Credits added monthly
+→ Webhook: subscription.cancelled → subscriptionId cleared
 ```
 
-### One-Time Credit Purchase Lifecycle
+### Credit Purchase Lifecycle (region-aware)
 
 ```
-User selects pack → createCreditCheckout → Razorpay order created
-→ User pays → verifyCreditPayment → HMAC signature verified
-→ Credits added to balance (never expire)
+User selects pack + region → createCreditCheckout(credits, region)
+→ Razorpay order created (USD or INR amount)
+→ User pays → verifyCreditPayment → HMAC verified
+→ Credits added (same credit value regardless of region)
 ```
 
-### Signature Verification
+### Key Principle
 
-Both flows use **HMAC-SHA256** with `RAZORPAY_KEY_SECRET` to verify payment authenticity before any credits are awarded.
+Credits are **currency-neutral** — 1 credit has the same purchasing power regardless of whether it was bought in USD or INR. The platform margin multiplier ensures profitability at both price points.
 
 ---
 
-## 11. Credit Transaction Tracking
+## 17. Credit Transaction Tracking
 
 > **Source:** `apps/web/lib/db.ts`, `apps/web/app/api/webhooks/fal/route.ts`
 
@@ -395,7 +583,7 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 | `type` | `"generation"` · `"subscription"` · `"purchase"` · `"refund"` |
 | `amount` | Credits added (positive) or deducted (negative) |
 | `balanceAfter` | User balance after the transaction |
-| `description` | Human-readable description |
+| `description` | Human-readable description (includes region for India) |
 | `generationId` | Linked generation ID (if applicable) |
 | `razorpayPaymentId` | Razorpay payment ID (if applicable) |
 | `createdAt` | Timestamp |
@@ -411,60 +599,101 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 
 ---
 
-## 12. Cost-Per-Use-Case Scenarios
+## 18. Cost-Per-Use-Case Scenarios
 
-### Scenario A: Solo Content Creator (Social Media)
+### Scenario A: Solo Content Creator — India (Social Media)
 
-**Profile:** 15–20 short videos/month, 720p, no watermark  
-**Recommended Plan:** Creator — **$19/month** ($180/year)
+**Profile:** 15–20 short videos/month, 720p, no watermark
+**Recommended Plan:** Creator India — **₹799/month** (₹7,188/year)
 
-| Item | Monthly Cost |
-|---|:---:|
-| Creator subscription | $19.00 |
-| 20 × 10 s videos (WAN 2.2 default) | 20 credits = $2.00 effective |
-| Occasional extra credit pack | $0–$5 |
-| **Total** | **~$19–$24/month** |
+| Item | Monthly Cost | Credits Used |
+|---|:---:|:---:|
+| Creator India subscription | ₹799 | — |
+| 20 × 10 s videos (WAN 2.2, 1 cr each) | 20 credits | 20 of 100 |
+| Remaining credits | — | 80 |
+| **Total** | **₹799/month** | — |
 
-### Scenario B: Marketing Agency (Product Videos)
+### Scenario B: Marketing Agency — Global (Product Videos)
 
-**Profile:** 50 videos/month, 1080p, Kling v2.6, some upscaling  
+**Profile:** 50 videos/month, 1080p, Kling v2.6 Pro with audio, some upscaling
 **Recommended Plan:** Pro — **$49/month** ($468/year)
 
-| Item | Monthly Cost |
-|---|:---:|
-| Pro subscription | $49.00 |
-| 50 × 12 s videos @ 9 credits each | 450 credits (within plan) |
-| 10 × Standard upscales @ 10 credits | 100 credits → buy 150-pack at $14 |
-| **Total** | **~$63/month** |
+| Item | Monthly Cost | Credits Used |
+|---|:---:|:---:|
+| Pro subscription | $49.00 | — |
+| 30 × 12 s Kling v2.6 Pro (no audio, 22 cr each) | — | 660 credits |
+| 10 × 12 s Kling v2.6 Pro (with audio, 33 cr each) | — | 330 credits |
+| Total usage: 990 credits (exceeds 490) | — | Need 500 top-up |
+| 500-credit pack | $40.00 | — |
+| **Total** | **$89/month** | — |
 
-### Scenario C: Production Studio (Premium + Long-Form)
+### Scenario C: Production Studio — Global (Premium + Long-Form)
 
-**Profile:** 30 premium clips + 5 long-form/month, all models, API access  
+**Profile:** 20 premium clips + 5 long-form/month, audio on premium, API access
 **Recommended Plan:** Studio — **$149/month** ($1,428/year)
 
-| Item | Monthly Cost |
+| Item | Credits Used |
 |---|:---:|
-| Studio subscription | $149.00 |
-| 30 × 15 s Kling v3 Pro videos | 1,020 credits (within plan) |
-| 5 × 120 s Krea WAN 14B long-form | 150 credits (within plan) |
-| 10 × Real-ESRGAN upscales | 250 credits → buy 500-pack at $40 |
-| **Total** | **~$189/month** |
+| 15 × 15 s Kling v3 Pro (no audio, 84 cr each) | 1,260 |
+| 5 × 10 s Kling v3 Standard (with audio, 32 cr each) | 160 |
+| Total from included | 1,420 of 1,490 |
+| Remaining | 70 credits |
+| **Monthly cost** | **$149** |
 
-### Scenario D: Light Exploration (Hobby / Testing)
+### Scenario D: Indian Production Team
 
-**Profile:** Occasional use, no subscription needed  
-**Recommended:** No plan + credit pack
+**Profile:** 30 videos/month, mix of models, audio on some
+**Recommended Plan:** Pro India — **₹1,999/month**
 
-| Item | One-Time Cost |
+| Item | Credits Used |
 |---|:---:|
-| 50-credit pack | $5.00 |
-| 10 × 5 s Hunyuan videos | 10 credits = $1.00 effective |
-| 5 × standard upscales | 50 credits = $5.00 effective |
-| **Total** | **$5.00 (pack)** |
+| 20 × 10 s LTXV 13B Distilled (5 cr each) | 100 |
+| 5 × 10 s Kling v2.6 Pro no audio (18 cr each) | 90 |
+| 5 × 5 s Kling v2.6 Pro with audio (14 cr each) | 70 |
+| Total from included (250 credits) | 260 → need small top-up |
+| 50-credit pack | ₹399 |
+| **Monthly cost** | **₹2,398** |
 
 ---
 
-## 13. Environment Variables for Billing
+## 19. Revenue Projections
+
+### Assumptions for Year 1
+
+| Metric | Global | India | Total |
+|---|:---:|:---:|:---:|
+| Free users | 5,000 | 10,000 | 15,000 |
+| Creator subs | 200 | 300 | 500 |
+| Pro subs | 100 | 80 | 180 |
+| Studio subs | 20 | 5 | 25 |
+| Avg credit pack purchases/mo | 50 | 80 | 130 |
+
+### Monthly Revenue Projection
+
+| Source | Global | India | Total |
+|---|:---:|:---:|:---:|
+| Creator subs | $3,800 | $2,850 (₹239,700) | $6,650 |
+| Pro subs | $4,900 | $1,904 (₹159,920) | $6,804 |
+| Studio subs | $2,980 | $357 (₹29,995) | $3,337 |
+| Credit pack purchases | $2,000 | $714 (₹59,940) | $2,714 |
+| **Monthly total** | **$13,680** | **$5,825** | **$19,505** |
+| **Annual total** | **$164,160** | **$69,900** | **$234,060** |
+
+### Monthly Cost Projection
+
+| Cost | Amount |
+|---|:---:|
+| fal.ai API costs (~40% of credit revenue) | ~$7,800 |
+| Infrastructure (Firebase, R2, Redis, Hosting) | ~$2,000 |
+| Razorpay fees (~2.5%) | ~$500 |
+| **Monthly cost total** | **~$10,300** |
+| **Monthly profit** | **~$9,200** |
+| **Annual profit** | **~$110,400** |
+| **Overall margin** | **~47%** |
+
+---
+
+## 20. Environment Variables for Billing
 
 > **Source:** `.env.example`
 
@@ -474,13 +703,21 @@ RAZORPAY_KEY_ID=rzp_test_xxxxx
 RAZORPAY_KEY_SECRET=xxxxx
 RAZORPAY_WEBHOOK_SECRET=xxxxx
 
-# Razorpay Plan IDs (create in Razorpay dashboard)
+# Razorpay Plan IDs — Global (USD)
 RAZORPAY_PLAN_CREATOR_MONTHLY=plan_xxxxx
 RAZORPAY_PLAN_CREATOR_YEARLY=plan_xxxxx
 RAZORPAY_PLAN_PRO_MONTHLY=plan_xxxxx
 RAZORPAY_PLAN_PRO_YEARLY=plan_xxxxx
 RAZORPAY_PLAN_STUDIO_MONTHLY=plan_xxxxx
 RAZORPAY_PLAN_STUDIO_YEARLY=plan_xxxxx
+
+# Razorpay Plan IDs — India (INR)
+RAZORPAY_PLAN_CREATOR_MONTHLY_INR=plan_xxxxx
+RAZORPAY_PLAN_CREATOR_YEARLY_INR=plan_xxxxx
+RAZORPAY_PLAN_PRO_MONTHLY_INR=plan_xxxxx
+RAZORPAY_PLAN_PRO_YEARLY_INR=plan_xxxxx
+RAZORPAY_PLAN_STUDIO_MONTHLY_INR=plan_xxxxx
+RAZORPAY_PLAN_STUDIO_YEARLY_INR=plan_xxxxx
 
 # Fal.ai — AI video generation
 FAL_KEY=fal_xxxxx
@@ -504,16 +741,17 @@ REDIS_URL=redis://localhost:6379
 
 ---
 
-## 14. Key Source Files
+## 21. Key Source Files
 
 | File | What it contains |
 |---|---|
-| `packages/shared/src/utils/pricing.ts` | `MODEL_COST_PER_SECOND`, `TIER_LIMITS`, `VIDEO_MODEL_CATALOG`, all helper functions |
-| `apps/web/lib/pricing.ts` | `PRICING_PLANS` — UI-facing plan definitions with Razorpay plan IDs |
-| `apps/web/server/routers/billing.ts` | `CREDIT_PACKS`, subscription and credit-purchase tRPC mutations |
+| `packages/shared/src/utils/pricing.ts` | `PLATFORM_MARGIN_MULTIPLIER`, `AUDIO_SURCHARGE_MULTIPLIER`, `MODEL_COST_PER_SECOND`, `TIER_LIMITS` (with India pricing), `VIDEO_MODEL_CATALOG`, `calculateCreditsCost()`, `calculateCreditsCostWithAudio()` |
+| `packages/shared/src/types/index.ts` | `PricingPlan` (with INR fields), `TierLimits` (with `monthlyPriceInr`, `includedCreditsIndia`) |
+| `apps/web/lib/pricing.ts` | `PRICING_PLANS` — UI-facing plan definitions with both USD and INR pricing |
+| `apps/web/server/routers/billing.ts` | `CREDIT_PACKS` (USD), `CREDIT_PACKS_INR` (India), region-aware subscription and credit checkout |
 | `apps/web/server/routers/upscaler.ts` | `UPSCALE_CREDIT_COST` (standard=10, real-esrgan=25) |
 | `apps/web/app/api/webhooks/razorpay/route.ts` | Subscription renewal webhook → credits added |
 | `apps/web/app/api/webhooks/fal/route.ts` | Generation/upscale webhook → refund on failure |
 | `apps/web/lib/db.ts` | `addCredits`, `deductCredits`, `creditTransactions` Firestore collection |
 | `apps/web/lib/queue.ts` | BullMQ setup — queue priority by tier |
-| `.env.example` | All required environment variables for billing and infrastructure |
+| `.env.example` | All required environment variables (now includes India plan IDs) |
