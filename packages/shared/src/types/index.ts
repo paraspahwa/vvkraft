@@ -6,6 +6,9 @@ export type GenerationStatus = "pending" | "queued" | "processing" | "completed"
 export type VideoResolution = "480p" | "720p" | "1080p";
 export type VideoModel = 
   | "fal-ai/longcat-video/distilled/text-to-video/480p"
+  | "fal-ai/longcat-video/distilled/text-to-video/720p"
+  | "fal-ai/ltxv-13b-098-distilled"
+  | "fal-ai/krea-wan-14b/text-to-video"
   | "fal-ai/wan/v2.2-a14b/image-to-video"
   | "fal-ai/kling-video/v2.6/pro/text-to-video"
   | "fal-ai/kling-video/v3/pro/text-to-video";
@@ -36,6 +39,8 @@ export interface TierLimits {
   priorityQueue: boolean;
   monthlyPriceUsd: number;
   includedCredits: number;
+  /** Maximum duration (seconds) allowed for long-form video generation; 0 = not available */
+  longVideoMaxDurationSeconds: number;
 }
 
 export interface Generation {

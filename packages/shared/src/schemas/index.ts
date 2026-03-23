@@ -8,6 +8,9 @@ export const videoResolutionSchema = z.enum(["480p", "720p", "1080p"] as const);
 
 export const videoModelSchema = z.enum([
   "fal-ai/longcat-video/distilled/text-to-video/480p",
+  "fal-ai/longcat-video/distilled/text-to-video/720p",
+  "fal-ai/ltxv-13b-098-distilled",
+  "fal-ai/krea-wan-14b/text-to-video",
   "fal-ai/wan/v2.2-a14b/image-to-video",
   "fal-ai/kling-video/v2.6/pro/text-to-video",
   "fal-ai/kling-video/v3/pro/text-to-video",
@@ -43,7 +46,34 @@ export const creditPurchaseSchema = z.object({
   credits: z.number().int().positive().min(10).max(10000),
 });
 
+/** Duration presets available for long-form video generation */
+export const longVideoDurationSchema = z.union([
+  z.literal(30),
+  z.literal(60),
+  z.literal(120),
+]);
+
+export const longVideoModelSchema = z.enum([
+  "fal-ai/longcat-video/distilled/text-to-video/480p",
+  "fal-ai/longcat-video/distilled/text-to-video/720p",
+  "fal-ai/ltxv-13b-098-distilled",
+  "fal-ai/krea-wan-14b/text-to-video",
+] as const);
+
+export const longVideoRequestSchema = z.object({
+  prompt: z.string().min(3, "Prompt must be at least 3 characters").max(2000, "Prompt too long"),
+  negativePrompt: z.string().max(500).optional(),
+  durationSeconds: longVideoDurationSchema,
+  aspectRatio: aspectRatioSchema.default("16:9"),
+  resolution: videoResolutionSchema.optional(),
+  seed: z.number().int().positive().optional(),
+  model: longVideoModelSchema.optional(),
+});
+
 export type GenerationRequestInput = z.infer<typeof generationRequestSchema>;
 export type UserProfileUpdateInput = z.infer<typeof userProfileUpdateSchema>;
 export type CharacterCreateInput = z.infer<typeof characterCreateSchema>;
 export type CreditPurchaseInput = z.infer<typeof creditPurchaseSchema>;
+export type LongVideoRequestInput = z.infer<typeof longVideoRequestSchema>;
+export type LongVideoModel = z.infer<typeof longVideoModelSchema>;
+export type LongVideoDuration = z.infer<typeof longVideoDurationSchema>;

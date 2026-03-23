@@ -55,9 +55,29 @@ interface FalLongcatInput {
   seed?: number;
 }
 
+interface FalLtxvInput {
+  prompt: string;
+  negative_prompt?: string;
+  num_frames?: number;
+  fps?: number;
+  width?: number;
+  height?: number;
+  seed?: number;
+}
+
+interface FalKreaWanInput {
+  prompt: string;
+  negative_prompt?: string;
+  num_frames?: number;
+  fps?: number;
+  width?: number;
+  height?: number;
+  seed?: number;
+}
+
 function buildFalInput(
   job: VideoGenerationJobData
-): FalKlingInput | FalWanInput | FalLongcatInput {
+): FalKlingInput | FalWanInput | FalLongcatInput | FalLtxvInput | FalKreaWanInput {
   const dims = RESOLUTION_DIMENSIONS[job.resolution] ?? { width: 854, height: 480 };
   const fps = 24;
   const numFrames = job.durationSeconds * fps;
@@ -94,7 +114,51 @@ function buildFalInput(
       return input;
     }
 
-    // Free tier model: longcat
+    case "fal-ai/ltxv-13b-098-distilled": {
+      // LTXV model: billed at 24 fps
+      const input: FalLtxvInput = {
+        prompt: job.prompt,
+        num_frames: numFrames,
+        fps,
+        width: dims.width,
+        height: dims.height,
+        seed: job.seed,
+      };
+      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
+      return input;
+    }
+
+    case "fal-ai/krea-wan-14b/text-to-video": {
+      // Krea WAN model: video seconds calculated at 16 fps
+      const kreaFps = 16;
+      const input: FalKreaWanInput = {
+        prompt: job.prompt,
+        num_frames: job.durationSeconds * kreaFps,
+        fps: kreaFps,
+        width: dims.width,
+        height: dims.height,
+        seed: job.seed,
+      };
+      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
+      return input;
+    }
+
+    case "fal-ai/longcat-video/distilled/text-to-video/720p": {
+      // Longcat 720p: 30 fps
+      const longcatFps = 30;
+      const input: FalLongcatInput = {
+        prompt: job.prompt,
+        num_frames: job.durationSeconds * longcatFps,
+        fps: longcatFps,
+        width: 1280,
+        height: 720,
+        seed: job.seed,
+      };
+      if (job.negativePrompt) input.negative_prompt = job.negativePrompt;
+      return input;
+    }
+
+    // Free tier model: longcat 480p
     case "fal-ai/longcat-video/distilled/text-to-video/480p":
     default: {
       const input: FalLongcatInput = {
