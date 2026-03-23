@@ -1,8 +1,19 @@
 import type { SubscriptionTier, TierLimits, VideoModel, VideoResolution } from "../types";
 import type { LongVideoModel } from "../schemas";
 
-// 1 credit = $0.10 USD
+// 1 credit = $0.10 USD (user-facing value)
 export const CREDIT_VALUE_USD = 0.10;
+
+// ─── Profitability constants ────────────────────────────────────────────────
+// Platform markup applied to API costs before converting to credits.
+// At 2.5×, each $0.10 credit covers only $0.04 of fal.ai API cost,
+// yielding ~60% gross margin on every generation.
+export const PLATFORM_MARGIN_MULTIPLIER = 2.5;
+
+// Audio surcharge — models that generate audio in the output cost 50% more
+// credits than audio-off. This covers the higher API cost for audio-enabled
+// generation (e.g. Kling audio on = 2× API rate).
+export const AUDIO_SURCHARGE_MULTIPLIER = 1.5;
 
 // ─── Representative per-second cost at standard quality (USD) ───────────────
 // Variable-cost models (megapixel, token, flat-rate, resolution-dependent)
@@ -71,7 +82,9 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     characterConsistency: false,
     priorityQueue: false,
     monthlyPriceUsd: 0,
+    monthlyPriceInr: 0,
     includedCredits: 0,
+    includedCreditsIndia: 0,
     longVideoMaxDurationSeconds: 0,
   },
   creator: {
@@ -85,7 +98,9 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     characterConsistency: true,
     priorityQueue: false,
     monthlyPriceUsd: 19,
+    monthlyPriceInr: 799,
     includedCredits: 190,
+    includedCreditsIndia: 100,
     longVideoMaxDurationSeconds: 60,
   },
   pro: {
@@ -99,7 +114,9 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     characterConsistency: true,
     priorityQueue: true,
     monthlyPriceUsd: 49,
+    monthlyPriceInr: 1999,
     includedCredits: 490,
+    includedCreditsIndia: 250,
     longVideoMaxDurationSeconds: 120,
   },
   studio: {
@@ -113,7 +130,9 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     characterConsistency: true,
     priorityQueue: true,
     monthlyPriceUsd: 149,
+    monthlyPriceInr: 5999,
     includedCredits: 1490,
+    includedCreditsIndia: 750,
     longVideoMaxDurationSeconds: 120,
   },
 };
@@ -154,14 +173,33 @@ export function creditsToUsd(credits: number): number {
 }
 
 /**
- * Calculate total credits cost for a generation
+ * Calculate total credits cost for a generation.
+ * Includes the platform margin multiplier so that each credit consumed
+ * covers less API cost than its face value, ensuring profitability.
  */
 export function calculateCreditsCost(
   model: VideoModel,
   durationSeconds: number
 ): number {
   const costUsd = calculateCostUsd(model, durationSeconds);
-  return usdToCredits(costUsd);
+  return Math.ceil((costUsd * PLATFORM_MARGIN_MULTIPLIER) / CREDIT_VALUE_USD);
+}
+
+/**
+ * Calculate credits cost with audio surcharge for models that support audio.
+ * Use this when the user requests audio-on generation.
+ * If the model does not support audio, falls back to the base credit cost.
+ */
+export function calculateCreditsCostWithAudio(
+  model: VideoModel,
+  durationSeconds: number
+): number {
+  const baseCost = calculateCreditsCost(model, durationSeconds);
+  const modelInfo = getModelInfo(model);
+  if (modelInfo?.hasAudio) {
+    return Math.ceil(baseCost * AUDIO_SURCHARGE_MULTIPLIER);
+  }
+  return baseCost;
 }
 
 /**
