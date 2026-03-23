@@ -140,6 +140,41 @@ export interface CreditTransaction {
   createdAt: Date;
 }
 
+// ── Video Upscaler ─────────────────────────────────────────────────────────────
+
+export type UpscaleStatus = "pending" | "queued" | "processing" | "completed" | "failed";
+
+/** Quality mode for upscaling: standard (free) or real-esrgan (paid users) */
+export type UpscaleQualityMode = "standard" | "real-esrgan";
+
+export interface VideoUpscaleJob {
+  id: string;
+  userId: string;
+  status: UpscaleStatus;
+  /** Public URL of the input video (from R2 or other storage) */
+  inputVideoUrl: string;
+  /** Duration of the source video in seconds */
+  inputDurationSeconds: number;
+  /** R2 key used for the uploaded input file */
+  inputR2Key: string | null;
+  /** Quality mode selected by the user */
+  qualityMode: UpscaleQualityMode;
+  /** Public URL of the 4K output video after processing */
+  outputVideoUrl: string | null;
+  /** R2 key for the permanent output file */
+  outputR2Key: string | null;
+  /** Fal.ai async request ID (set once submitted) */
+  falRequestId: string | null;
+  /** Credits consumed */
+  creditsCost: number;
+  /** Human-readable error message on failure */
+  errorMessage: string | null;
+  processingStartedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface GenerationRequest {
   prompt: string;
   negativePrompt?: string;

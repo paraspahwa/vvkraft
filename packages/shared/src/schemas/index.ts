@@ -135,3 +135,29 @@ export type CreditPurchaseInput = z.infer<typeof creditPurchaseSchema>;
 export type LongVideoRequestInput = z.infer<typeof longVideoRequestSchema>;
 export type LongVideoModel = z.infer<typeof longVideoModelSchema>;
 export type LongVideoDuration = z.infer<typeof longVideoDurationSchema>;
+
+// ── Video Upscaler Schemas ─────────────────────────────────────────────────────
+
+export const upscaleQualityModeSchema = z.enum(["standard", "real-esrgan"] as const);
+
+/**
+ * Maximum allowed video duration for upscaling (in seconds).
+ * Longer videos are rejected to prevent excessive processing time and cost.
+ */
+export const MAX_UPSCALE_DURATION_SECONDS = 120;
+
+export const videoUpscaleRequestSchema = z.object({
+  /** Pre-uploaded video URL (from the R2 presigned upload) */
+  inputVideoUrl: z.string().url("Must be a valid video URL"),
+  /** Duration reported by the client (validated ≤ 120s) */
+  inputDurationSeconds: z
+    .number()
+    .positive()
+    .max(MAX_UPSCALE_DURATION_SECONDS, `Video must be ≤ ${MAX_UPSCALE_DURATION_SECONDS} seconds`),
+  /** R2 key of the uploaded input file */
+  inputR2Key: z.string().min(1),
+  /** Quality mode — paid users may select real-esrgan */
+  qualityMode: upscaleQualityModeSchema.default("standard"),
+});
+
+export type VideoUpscaleRequestInput = z.infer<typeof videoUpscaleRequestSchema>;

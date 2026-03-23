@@ -13,6 +13,7 @@ import {
   Film,
   User2,
   Clock,
+  ArrowUpCircle,
 } from "lucide-react";
 import { cn } from "@videoforge/ui";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -22,7 +23,8 @@ import { Badge } from "@videoforge/ui";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/generate", label: "Generate", icon: Wand2, exact: true },
-  { href: "/generate/long-video", label: "Long Video", icon: Clock },
+  { href: "/generate/long-video", label: "Long Video", icon: Clock, paidOnly: true },
+  { href: "/upscale", label: "Upscale 4K", icon: ArrowUpCircle },
   { href: "/gallery", label: "Gallery", icon: Image },
   { href: "/characters", label: "Characters", icon: User2 },
   { href: "/pricing", label: "Pricing", icon: DollarSign },
@@ -50,7 +52,7 @@ export function Sidebar() {
           const isActive = item.exact
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(item.href + "/");
-          const isPaidOnly = item.href === "/generate/long-video";
+          const isPaidOnly = item.paidOnly ?? false;
           return (
             <Link
               key={item.href}
