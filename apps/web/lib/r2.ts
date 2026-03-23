@@ -93,3 +93,17 @@ export function buildThumbnailKey(userId: string, generationId: string): string 
 export function buildCharacterKey(userId: string, characterId: string): string {
   return `characters/${userId}/${characterId}/reference.jpg`;
 }
+
+/**
+ * Build R2 storage key for an upscale input video
+ */
+export function buildUpscaleInputKey(userId: string, jobId: string): string {
+  return `upscale/${userId}/${jobId}/input.mp4`;
+}
+
+/**
+ * Build R2 storage key for an upscale output (4K) video
+ */
+export function buildUpscaleOutputKey(userId: string, jobId: string): string {
+  return `upscale/${userId}/${jobId}/output-4k.mp4`;
+}

@@ -1,5 +1,5 @@
 import { adminDb } from "./firebase-admin";
-import type { User, Generation, Character, CreditTransaction, SubscriptionTier } from "@videoforge/shared";
+import type { User, Generation, Character, CreditTransaction, SubscriptionTier, VideoUpscaleJob } from "@videoforge/shared";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 // Collection helpers
@@ -7,6 +7,7 @@ const usersCol = () => adminDb.collection("users");
 const generationsCol = () => adminDb.collection("generations");
 const charactersCol = () => adminDb.collection("characters");
 const transactionsCol = () => adminDb.collection("creditTransactions");
+const upscaleJobsCol = () => adminDb.collection("videoUpscaleJobs");
 
 function fromTimestamp(ts: Timestamp): Date {
   return ts.toDate();
@@ -230,4 +231,62 @@ export async function getUserCharacters(userId: string): Promise<Character[]> {
       updatedAt: fromTimestamp(data["updatedAt"]),
     } as Character;
   });
+}
+
+// ── Video Upscale Job operations ──────────────────────────────────────────────
+
+function docToUpscaleJob(data: FirestoreDocData, id: string): VideoUpscaleJob {
+  return {
+    ...data,
+    id,
+    createdAt: fromTimestamp(data.createdAt),
+    updatedAt: fromTimestamp(data.updatedAt),
+    processingStartedAt: data.processingStartedAt ? fromTimestamp(data.processingStartedAt) : null,
+    completedAt: data.completedAt ? fromTimestamp(data.completedAt) : null,
+  } as VideoUpscaleJob;
+}
+
+export async function createUpscaleJob(
+  data: Omit<VideoUpscaleJob, "id" | "createdAt" | "updatedAt">
+): Promise<VideoUpscaleJob> {
+  const now = Timestamp.now();
+  const ref = upscaleJobsCol().doc();
+  const doc = { ...data, createdAt: now, updatedAt: now };
+  await ref.set(doc);
+  return { ...data, id: ref.id, createdAt: now.toDate(), updatedAt: now.toDate() };
+}
+
+export async function getUpscaleJobById(jobId: string): Promise<VideoUpscaleJob | null> {
+  const doc = await upscaleJobsCol().doc(jobId).get();
+  if (!doc.exists) return null;
+  return docToUpscaleJob(doc.data() as FirestoreDocData, doc.id);
+}
+
+export async function updateUpscaleJob(
+  jobId: string,
+  data: Partial<Omit<VideoUpscaleJob, "id" | "createdAt">>
+): Promise<void> {
+  await upscaleJobsCol().doc(jobId).update({
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
+}
+
+export async function getUserUpscaleJobs(
+  userId: string,
+  limit = 20,
+  startAfter?: string
+): Promise<VideoUpscaleJob[]> {
+  let query = upscaleJobsCol()
+    .where("userId", "==", userId)
+    .orderBy("createdAt", "desc")
+    .limit(limit);
+
+  if (startAfter) {
+    const cursor = await upscaleJobsCol().doc(startAfter).get();
+    query = query.startAfter(cursor);
+  }
+
+  const snapshot = await query.get();
+  return snapshot.docs.map((doc) => docToUpscaleJob(doc.data() as FirestoreDocData, doc.id));
 }
