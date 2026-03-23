@@ -2,9 +2,9 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { characterCreateSchema } from "@videoforge/shared";
-import { createCharacter, getUserCharacters } from "@/lib/db";
-import { adminDb } from "@/lib/firebase-admin";
-import { deleteFromR2, getPresignedUploadUrl, buildCharacterKey } from "@/lib/r2";
+import { createCharacter, getUserCharacters } from "../../lib/db";
+import { adminDb } from "../../lib/firebase-admin";
+import { deleteFromR2, getPresignedUploadUrl, buildCharacterKey } from "../../lib/r2";
 
 export const characterRouter = router({
   // List user's characters

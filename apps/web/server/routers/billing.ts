@@ -3,8 +3,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import Razorpay from "razorpay";
 import { router, protectedProcedure } from "../trpc";
-import { updateUser, addCredits } from "@/lib/db";
-import { PRICING_PLANS } from "@/lib/pricing";
+import { updateUser, addCredits } from "../../lib/db";
+import { PRICING_PLANS } from "../../lib/pricing";
 import { TIER_LIMITS } from "@videoforge/shared";
 import type { SubscriptionTier } from "@videoforge/shared";
 

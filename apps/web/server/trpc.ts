@@ -2,8 +2,8 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { adminAuth } from "@/lib/firebase-admin";
-import { getUserById } from "@/lib/db";
+import { adminAuth } from "../lib/firebase-admin";
+import { getUserById } from "../lib/db";
 import type { User } from "@videoforge/shared";
 
 // Context type available in all procedures

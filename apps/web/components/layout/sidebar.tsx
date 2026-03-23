@@ -12,6 +12,7 @@ import {
   Zap,
   Film,
   User2,
+  Clock,
 } from "lucide-react";
 import { cn } from "@videoforge/ui";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -20,7 +21,8 @@ import { Badge } from "@videoforge/ui";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/generate", label: "Generate", icon: Wand2 },
+  { href: "/generate", label: "Generate", icon: Wand2, exact: true },
+  { href: "/generate/long-video", label: "Long Video", icon: Clock },
   { href: "/gallery", label: "Gallery", icon: Image },
   { href: "/characters", label: "Characters", icon: User2 },
   { href: "/pricing", label: "Pricing", icon: DollarSign },
@@ -45,7 +47,10 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-4">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = item.exact
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + "/");
+          const isPaidOnly = item.href === "/generate/long-video";
           return (
             <Link
               key={item.href}
@@ -58,7 +63,12 @@ export function Sidebar() {
               )}
             >
               <item.icon className="h-4 w-4 flex-shrink-0" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {isPaidOnly && (
+                <span className="rounded-full bg-accent-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent-400">
+                  PAID
+                </span>
+              )}
             </Link>
           );
         })}

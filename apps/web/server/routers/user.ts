@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { userProfileUpdateSchema } from "@videoforge/shared";
-import { updateUser, getUserById } from "@/lib/db";
-import { adminDb } from "@/lib/firebase-admin";
+import { updateUser, getUserById } from "../../lib/db";
+import { adminDb } from "../../lib/firebase-admin";
 
 export const userRouter = router({
   // Get current user profile
