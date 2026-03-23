@@ -2,10 +2,10 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { generationRequestSchema, longVideoRequestSchema, TIER_QUEUE_PRIORITY } from "@videoforge/shared";
-import { createGeneration, getGenerationById, getUserGenerations, updateGeneration } from "@/lib/db";
-import { routeModel, routeLongVideo } from "@/lib/model-router";
-import { enqueueVideoGeneration } from "@/lib/queue";
-import { deductCredits } from "@/lib/db";
+import { createGeneration, getGenerationById, getUserGenerations, updateGeneration } from "../../lib/db";
+import { routeModel, routeLongVideo } from "../../lib/model-router";
+import { enqueueVideoGeneration } from "../../lib/queue";
+import { deductCredits } from "../../lib/db";
 
 export const generationRouter = router({
   // Create a new video generation
