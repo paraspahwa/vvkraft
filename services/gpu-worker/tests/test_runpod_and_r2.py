@@ -15,8 +15,8 @@ from app.storage.r2_client import (
 
 
 class TestGetGpuTier:
-    def test_free_maps_to_4090(self):
-        assert get_gpu_tier(SubscriptionTier.FREE) == GPUTier.RTX_4090
+    def test_free_maps_to_3060(self):
+        assert get_gpu_tier(SubscriptionTier.FREE) == GPUTier.RTX_3060
 
     def test_studio_maps_to_a100(self):
         assert get_gpu_tier(SubscriptionTier.STUDIO) == GPUTier.A100

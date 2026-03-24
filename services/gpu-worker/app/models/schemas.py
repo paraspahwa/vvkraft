@@ -19,6 +19,7 @@ class SubscriptionTier(str, Enum):
 
 
 class GPUTier(str, Enum):
+    RTX_3060 = "rtx_3060"
     RTX_4090 = "rtx_4090"
     A100 = "a100"
 

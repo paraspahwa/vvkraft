@@ -53,7 +53,7 @@ class TestGenerationEndpoint:
         data = response.json()
         assert data["status"] == "draft_preview"
         assert data["generation_id"] == "gen-test-001"
-        assert data["gpu_tier"] == "rtx_4090"
+        assert data["gpu_tier"] == "rtx_3060"
         mock_task.apply_async.assert_called_once()
 
     @patch("app.api.routes.generation.generate_video")

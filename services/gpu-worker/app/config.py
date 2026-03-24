@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # ── RunPod ─────────────────────────────────────────────────────────────────
     RUNPOD_API_KEY: str = ""
+    RUNPOD_ENDPOINT_3060: str = ""
     RUNPOD_ENDPOINT_4090: str = ""
     RUNPOD_ENDPOINT_A100: str = ""
 

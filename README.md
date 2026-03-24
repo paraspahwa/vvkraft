@@ -39,11 +39,19 @@
   - [Install & Run](#install--run)
 - [Deployment](#deployment)
 - [Architecture](#architecture)
+  - [Hidden Layers (Competitive Moat)](#hidden-layers-competitive-moat)
+  - [Draft Mode Flow (Mandatory)](#draft-mode-flow-mandatory)
+  - [Scene-Based Rendering](#scene-based-rendering)
+  - [GPU Tiering](#gpu-tiering)
+  - [Dynamic Downgrade Engine](#dynamic-downgrade-engine)
+  - [Smart Retry System](#smart-retry-system)
+  - [Cache Layer](#cache-layer)
   - [API Layer (tRPC)](#api-layer-trpc)
   - [AI Video Generation Pipeline](#ai-video-generation-pipeline)
   - [Billing (Razorpay)](#billing-razorpay)
   - [Storage (Cloudflare R2)](#storage-cloudflare-r2)
   - [Queue (BullMQ + Redis)](#queue-bullmq--redis)
+- [India Pricing](#india-pricing)
 - [Implementation Status](#implementation-status)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -244,20 +252,24 @@ videoforge/
 
 ## Features & Subscription Tiers
 
-| Feature | Free | Creator ($19/mo) | Pro ($49/mo) | Studio ($149/mo) |
+| Feature | Free | Starter (₹199/mo) | Creator (₹499/mo) | Pro (₹999/mo) |
 |---|:---:|:---:|:---:|:---:|
 | Videos / day | 3 | — | — | — |
-| Videos / month | — | 50 | 200 | Unlimited |
-| Max duration | 5s | 10s | 15s | 15s |
+| Videos / month | — | 50 | 150 | 400 |
+| Max duration | 5s | 10s | 15s | 30s |
 | Long-form video | ❌ | up to 60s | up to 120s | up to 120s |
 | Max resolution | 480p | 720p | 1080p | 1080p |
 | Watermark | ✅ | ❌ | ❌ | ❌ |
 | Character consistency | ❌ | ✅ | ✅ | ✅ |
 | Motion control | ❌ | ❌ | ✅ | ✅ |
-| Priority queue | ❌ | ❌ | ✅ | ✅ |
+| Priority queue | ❌ | ❌ | ✅ | ✅ (fastest) |
+| GPU | RTX 3060 | RTX 4090 | A100 | A100 |
+| Draft preview | ✅ | ✅ | ✅ | ✅ |
 | Default AI Model | Longcat (480p) | WAN 2.2 | Kling v2.6 Pro | Kling v3 Pro |
-| Included credits/mo | 0 | 190 | 490 | 1,490 |
+| India credits/mo | 0 | 50 | 150 | 400 |
 | API access | ❌ | ❌ | ❌ | ✅ |
+
+> **India pricing** — see [India Pricing](#india-pricing) for full plan details including hidden controls.
 
 **1 credit = $0.10 USD.** Credits are deducted upfront and refunded automatically on generation failure.
 
@@ -408,6 +420,147 @@ eas submit                 # Submit to App Store / Google Play
 
 ## Architecture
 
+### Hidden Layers (Competitive Moat)
+
+These four engines run below the surface and are the platform's primary competitive advantage. Users interact only with a simple prompt box; the complexity is invisible.
+
+| Engine | Status | What it does |
+|---|:---:|---|
+| **AI Routing Engine** | ✅ | Selects the optimal model + GPU based on tier, load, and cost policy |
+| **Scene Stitching Engine** | ✅ | Splits long videos into independent ≤10 s scenes, renders in parallel, stitches via FFmpeg |
+| **Prompt → Script Generator** | ✅ | Enriches raw user prompts into cinematically structured per-scene scripts |
+| **Cost Optimizer** | ✅ | Tracks per-user GPU spend and applies automatic downgrade policies to protect margins |
+
+---
+
+### Draft Mode Flow (Mandatory)
+
+Every generation goes through a mandatory two-step flow before full GPU render to eliminate wasted spend on bad prompts:
+
+```
+User submits prompt
+        │
+        ▼
+  generate_draft_preview  ──► LTX model on RTX 3060/4090
+  480p · ≤5s · low cost
+        │
+        ▼
+  User reviews draft preview
+        │
+   ┌────┴────┐
+approve     reject / edit prompt
+   │
+   ▼
+generate_video (full render)
+  Wan 2.2 / Kling  ──► RTX 4090 or A100 (based on tier)
+  720p–1080p · up to 30s
+```
+
+This flow is enforced server-side via `draft_mode: true` on `GenerationRequest`. The frontend must poll `DRAFT_PREVIEW` status before allowing the user to proceed to full render.
+
+---
+
+### Scene-Based Rendering
+
+Instead of rendering a single long video (expensive, unrecoverable on failure), every request is automatically split into **3 × 10-second scenes**:
+
+```
+30-second request
+        │
+   split_into_scenes()
+        │
+   ┌────┼────┐
+   │    │    │
+Scene0  Scene1  Scene2
+ 10s    10s    10s
+ (parallel RunPod jobs)
+        │
+   stitch_scenes() ──► FFmpeg concat → final.mp4 → R2
+```
+
+**Why scenes?**
+- ✅ Each scene is retried independently — no full re-render on partial failure
+- ✅ Parallel execution cuts wall-clock time
+- ✅ Shorter renders fit into RunPod serverless windows (lower cost)
+- ✅ Scene-level caching avoids re-processing identical prompts
+
+Scene splitting is implemented in `services/gpu-worker/app/core/scene_stitcher.py:split_into_scenes`.
+
+---
+
+### GPU Tiering
+
+Hardware is assigned per subscription tier. Actual GPU assignments are hidden from users — they only see "fast" vs "fastest":
+
+| Plan | Display Name | GPU | Queue Priority | Max Resolution |
+|---|---|---|:---:|---|
+| Free | Free | **RTX 3060** | 10 (slowest) | 480p |
+| Creator (`creator`) | Starter | **RTX 4090** | 7 | 720p |
+| Pro (`pro`) | Creator | **A100** | 3 | 1080p |
+| Studio (`studio`) | Pro | **A100** | 1 (fastest) | 1080p |
+
+> RunPod endpoints: `RUNPOD_ENDPOINT_3060`, `RUNPOD_ENDPOINT_4090`, `RUNPOD_ENDPOINT_A100` in `.env`.
+
+Implemented in `services/gpu-worker/app/core/gpu_router.py:route_gpu`.
+
+---
+
+### Dynamic Downgrade Engine
+
+The cost optimizer automatically applies quality/speed degradations when user spending approaches tier ceilings or when system load is high. These measures are invisible to users.
+
+**Triggers & actions:**
+
+| Trigger | Action |
+|---|---|
+| User cost > 80% of tier ceiling | Downgrade to 480p, reduce FPS to 16, limit retries to 1 |
+| System load > 0.8 + Free/Creator tier | Slow queue, downgrade to 480p |
+| Free tier (always) | Add watermark |
+
+**Per-tier cost ceilings:**
+
+| Tier | Ceiling (USD/cycle) |
+|---|---|
+| Free | $0.50 |
+| Creator (Starter) | $5.00 |
+| Pro (Creator) | $25.00 |
+| Studio (Pro) | $100.00 |
+
+Implemented in `services/gpu-worker/app/core/cost_optimizer.py:evaluate_cost_policy`.
+
+---
+
+### Smart Retry System
+
+Unlike naive "regenerate the whole video" approaches, VideoForge retries **only the failed scene**:
+
+```python
+@celery_app.task(max_retries=3)
+def render_scene(self, *, generation_id, scene_index, ...):
+    try:
+        result = submit_job(gpu_tier, payload)
+    except Exception as exc:
+        raise self.retry(exc=exc)   # ← retries THIS scene only
+```
+
+If scene 1 of 3 fails, scenes 0 and 2 are already complete. Only scene 1 is re-submitted. Final stitching runs only after all 3 succeed.
+
+---
+
+### Cache Layer
+
+Three levels of caching reduce GPU spend and latency:
+
+| Layer | What is cached | TTL |
+|---|---|---|
+| **Prompt cache** | Redis key of normalized prompt → generation ID | 1 hour |
+| **Embedding cache** | Prompt embeddings for semantic similarity matching | 24 hours |
+| **Scene cache** | Rendered scene R2 keys for identical prompt+duration combos | 7 days |
+
+A cache hit on a scene skips the RunPod job entirely, returning the existing R2 URL. Cost is reported as `cached: true` with `total_cost_usd: 0` in the `CostBreakdown`.
+
+---
+
 ### API Layer (tRPC)
 
 All server-client communication goes through a single **tRPC** router at `/api/trpc`. Every procedure is type-safe end-to-end:
@@ -447,59 +600,68 @@ Authentication uses **Firebase ID tokens** passed as `Authorization: Bearer <tok
 
 ```
 User submits prompt
-      ↓
+      │
+      ▼
 tRPC generation.create
-  → routeModel()       # select model based on tier + resolution
-  → deductCredits()    # atomic Firestore transaction
-  → createGeneration() # Firestore record (status: "pending")
-  → enqueueVideoGeneration() # BullMQ job with tier priority
-      ↓
-[BullMQ Worker] (⚠ not yet implemented — see Pending)
-  → fal.ai API call
-  → poll / webhook
-      ↓
-POST /api/webhooks/fal
-  → status: IN_PROGRESS  → update generation (processing)
-  → status: COMPLETED    → download from fal.ai → upload to R2 → mark completed
-  → status: FAILED       → mark failed + refund credits
+  → routeModel()              # select model based on tier + resolution
+  → deductCredits()           # atomic Firestore transaction
+  → createGeneration()        # Firestore record (status: "pending")
+  → enqueueVideoGeneration()  # BullMQ job with tier priority
+      │
+      ▼
+[GPU Worker — Celery + RunPod]
+  Step 1: generate_draft_preview  → LTX model, 480p, RTX 3060/4090
+                │
+           (user approves draft)
+                │
+  Step 2: generate_video
+    → split_into_scenes()     # 3 × 10s scenes for a 30s video
+    → render_scene (×N)       # parallel RunPod jobs on tier GPU
+    → stitch_scenes()         # FFmpeg concat → watermark → thumbnail
+      │
+      ▼
+POST /api/webhooks/runpod
+  → scene COMPLETED  → upload to R2, mark scene done
+  → all scenes done  → stitch → mark generation COMPLETED
+  → scene FAILED     → retry that scene only (smart retry)
 ```
 
 **Model routing by tier (standard video):**
 
-| Tier | Default Model | Max Resolution | Max Duration |
-|---|---|---|---|
-| Free | `fal-ai/longcat-video/distilled/text-to-video/480p` | 480p | 5s |
-| Creator | `fal-ai/wan/v2.2-a14b/image-to-video` | 720p | 10s |
-| Pro | `fal-ai/kling-video/v2.6/pro/text-to-video` | 1080p | 15s |
-| Studio | `fal-ai/kling-video/v3/pro/text-to-video` | 1080p | 15s |
+| Plan | Internal Tier | Default Model | GPU | Max Resolution | Max Duration |
+|---|---|---|---|---|---|
+| Free | `free` | `fal-ai/longcat-video/distilled/text-to-video/480p` | RTX 3060 | 480p | 5s |
+| Starter | `creator` | `fal-ai/wan/v2.2-a14b/image-to-video` | RTX 4090 | 720p | 10s |
+| Creator | `pro` | `fal-ai/kling-video/v2.6/pro/text-to-video` | A100 | 1080p | 15s |
+| Pro | `studio` | `fal-ai/kling-video/v3/pro/text-to-video` | A100 | 1080p | 30s |
 
 **Long-form video routing by tier:**
 
-| Tier | Default Long-Form Model | Max Long-Form Duration |
+| Plan | Default Long-Form Model | Max Long-Form Duration |
 |---|---|---|
 | Free | ❌ not available | — |
-| Creator | `fal-ai/longcat-video/distilled/text-to-video/720p` | 60s |
-| Pro | `fal-ai/ltxv-13b-098-distilled` | 120s |
-| Studio | `fal-ai/krea-wan-14b/text-to-video` | 120s |
+| Starter | `fal-ai/longcat-video/distilled/text-to-video/720p` | 60s |
+| Creator | `fal-ai/ltxv-13b-098-distilled` | 120s |
+| Pro | `fal-ai/krea-wan-14b/text-to-video` | 120s |
 
 **Full model catalog (40+ models, selectable per tier):**
 
-> `+` means "and all higher tiers" (e.g. Creator+ = Creator, Pro, and Studio).
+> `+` means "and all higher tiers" (e.g. Starter+ = Starter, Creator, and Pro).
 
 | Family | Models | Available from |
 |---|---|---|
 | Longcat | 480p / 720p (distilled + standard) | Free+ |
-| LTXV / LTX | ltxv-13b, ltx-2, ltx-2.3, ltx-2-19b | Creator+ |
-| WAN / Krea | WAN 2.2-a14b, WAN 2.2-5b, WAN 2.5, WAN 2.6, Krea WAN 14B | Creator+ |
-| Kling | v2.6 Pro, v3 Pro, v3 Standard, O3 Pro, O3 Standard, v2.5 Turbo | Pro+ |
-| Pixverse | v5, v5.5, v5.6 | Creator+ |
-| ByteDance / Seedance | Seedance v1 Pro, Seedance v1.5 Pro | Creator+ |
-| HeyGen / Argil | Avatar3 Digital Twin, Video Agent v2, Argil Avatars | Pro+ |
-| Cosmos / HunyuanVideo | Cosmos Predict 2.5, HunyuanVideo v1.5 | Creator+ |
-| MiniMax | Hailuo 2.3 | Pro+ |
-| Kandinsky | Kandinsky5, Kandinsky5 Distilled | Creator+ |
-| Vidu | Q3 Turbo | Creator+ |
-| xAI / Veed | Grok Imagine Video, Veed Fabric 1.0 | Pro+ |
+| LTXV / LTX | ltxv-13b, ltx-2, ltx-2.3, ltx-2-19b | Starter+ |
+| WAN / Krea | WAN 2.2-a14b, WAN 2.2-5b, WAN 2.5, WAN 2.6, Krea WAN 14B | Starter+ |
+| Kling | v2.6 Pro, v3 Pro, v3 Standard, O3 Pro, O3 Standard, v2.5 Turbo | Creator+ |
+| Pixverse | v5, v5.5, v5.6 | Starter+ |
+| ByteDance / Seedance | Seedance v1 Pro, Seedance v1.5 Pro | Starter+ |
+| HeyGen / Argil | Avatar3 Digital Twin, Video Agent v2, Argil Avatars | Creator+ |
+| Cosmos / HunyuanVideo | Cosmos Predict 2.5, HunyuanVideo v1.5 | Starter+ |
+| MiniMax | Hailuo 2.3 | Creator+ |
+| Kandinsky | Kandinsky5, Kandinsky5 Distilled | Starter+ |
+| Vidu | Q3 Turbo | Starter+ |
+| xAI / Veed | Grok Imagine Video, Veed Fabric 1.0 | Creator+ |
 
 ### Billing (Razorpay)
 
@@ -547,6 +709,33 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 | Pro | 3 |
 | Creator | 5 |
 | Free | 10 |
+
+---
+
+## India Pricing
+
+VideoForge is designed primarily for the Indian market. Pricing is kept intentionally low and opaque to maximise conversions while protecting margin through hidden quality controls.
+
+### Plans
+
+| Plan | Internal Tier | Price (INR/mo) | Videos/month | GPU |
+|---|---|:---:|:---:|---|
+| **Starter** | `creator` | ₹199 | 50 | RTX 4090 |
+| **Creator** | `pro` | ₹499 | 150 | A100 |
+| **Pro** | `studio` | ₹999 | 400 | A100 (priority) |
+
+### Hidden Controls (profit protection)
+
+These are applied silently — users are never told about them:
+
+| Plan | Slower Queue | Lower Quality | Watermark |
+|---|:---:|:---:|:---:|
+| Free | ✅ (priority 10) | ✅ (480p, RTX 3060) | ✅ |
+| Starter (₹199) | slight (priority 7) | slight (720p max) | ❌ |
+| Creator (₹499) | ❌ | ❌ | ❌ |
+| Pro (₹999) | ❌ (priority queue) | ❌ (1080p, A100) | ❌ |
+
+> The Dynamic Downgrade Engine adds additional quality caps when a user approaches their monthly cost ceiling, regardless of plan.
 
 ---
 

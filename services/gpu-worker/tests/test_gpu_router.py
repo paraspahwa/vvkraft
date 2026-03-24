@@ -9,9 +9,9 @@ from app.models.schemas import GPUTier, SubscriptionTier, VideoResolution
 
 
 class TestRouteGpu:
-    def test_free_tier_gets_4090(self):
+    def test_free_tier_gets_3060(self):
         result = route_gpu(SubscriptionTier.FREE)
-        assert result.gpu_tier == GPUTier.RTX_4090
+        assert result.gpu_tier == GPUTier.RTX_3060
 
     def test_creator_tier_gets_4090(self):
         result = route_gpu(SubscriptionTier.CREATOR)

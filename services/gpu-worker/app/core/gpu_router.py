@@ -2,6 +2,12 @@
 
 Selects the correct GPU tier, queue priority, and endpoint based on the
 user's subscription tier and current system load.
+
+GPU Tier hierarchy:
+  Free      → RTX 3060  (cheapest, limited quality)
+  Creator   → RTX 4090  (Starter plan, ₹199/month)
+  Pro       → A100      (Creator plan, ₹499/month)
+  Studio    → A100      (Pro plan, ₹999/month, priority queue)
 """
 
 from __future__ import annotations
@@ -26,9 +32,12 @@ class GPURoutingResult:
     estimated_cost_per_second_usd: float
 
 
-# GPU tier map
+# GPU tier map: subscription tier → hardware
+# Free users get RTX 3060 (low cost, hidden quality cap).
+# Creator (Starter ₹199) gets RTX 4090 for better throughput.
+# Pro (Creator ₹499) and Studio (Pro ₹999) get A100 for full quality.
 _GPU_MAP: dict[SubscriptionTier, GPUTier] = {
-    SubscriptionTier.FREE: GPUTier.RTX_4090,
+    SubscriptionTier.FREE: GPUTier.RTX_3060,
     SubscriptionTier.CREATOR: GPUTier.RTX_4090,
     SubscriptionTier.PRO: GPUTier.A100,
     SubscriptionTier.STUDIO: GPUTier.A100,
@@ -57,10 +66,12 @@ _MAX_RESOLUTION: dict[SubscriptionTier, VideoResolution] = {
     SubscriptionTier.STUDIO: VideoResolution.P1080,
 }
 
-# Per-second GPU cost
+# Per-second GPU cost (USD) — used for internal cost tracking only.
+# These costs are hidden from users; they see only plan video limits.
 _COST_PER_SECOND: dict[GPUTier, float] = {
-    GPUTier.RTX_4090: 0.00036,
-    GPUTier.A100: 0.00083,
+    GPUTier.RTX_3060: 0.00014,  # ~$0.50/hr
+    GPUTier.RTX_4090: 0.00036,  # ~$1.30/hr
+    GPUTier.A100: 0.00083,      # ~$3.00/hr
 }
 
 

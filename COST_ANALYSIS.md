@@ -141,35 +141,36 @@ Even yearly plans (with 20% user discount) maintain **~50% gross margin**.
 
 ## 4. Subscription Plans — India (INR)
 
-> PPP-adjusted pricing targeting the Indian market (~50% below USD equivalent)
+> Aggressive pricing targeting the Indian market. Real cost is hidden behind plan video limits, not credits, to maximise conversion.
 
 ### Monthly Pricing
 
-| Plan | Monthly Price (INR) | USD Equivalent | Included Credits | Credits API Value | Gross Margin |
-|------|:---:|:---:|:---:|:---:|:---:|
-| **Free** | ₹0 | $0 | 0 | $0 | — |
-| **Creator** | ₹799 | ~$9.50 | 100 | $4.00 | **$5.50 (58%)** |
-| **Pro** | ₹1,999 | ~$23.80 | 250 | $10.00 | **$13.80 (58%)** |
-| **Studio** | ₹5,999 | ~$71.40 | 750 | $30.00 | **$41.40 (58%)** |
+| Plan | Display Name | Monthly Price (INR) | USD Equivalent | Included Videos | GPU | Gross Margin |
+|------|---|:---:|:---:|:---:|:---:|:---:|
+| **Free** | Free | ₹0 | $0 | 3/day | RTX 3060 | — |
+| **Creator** | **Starter** | ₹199 | ~$2.40 | 50/month | RTX 4090 | **~70%** |
+| **Pro** | **Creator** | ₹499 | ~$5.95 | 150/month | A100 | **~65%** |
+| **Studio** | **Pro** | ₹999 | ~$11.90 | 400/month | A100 (priority) | **~60%** |
 
 ### Yearly Pricing (INR, per month billed annually)
 
-| Plan | Monthly Equivalent | Annual Total | Annual Savings vs Monthly |
-|------|:---:|:---:|:---:|
-| **Free** | ₹0 | ₹0 | — |
-| **Creator** | ₹599/mo | ₹7,188/yr | **₹2,400/yr (25% off)** |
-| **Pro** | ₹1,599/mo | ₹19,188/yr | **₹4,800/yr (20% off)** |
-| **Studio** | ₹4,999/mo | ₹59,988/yr | **₹12,000/yr (17% off)** |
+| Plan | Display Name | Monthly Equivalent | Annual Total | Annual Savings vs Monthly |
+|------|---|:---:|:---:|:---:|
+| **Free** | Free | ₹0 | ₹0 | — |
+| **Creator** | Starter | ₹149/mo | ₹1,788/yr | **₹600/yr (25% off)** |
+| **Pro** | Creator | ₹399/mo | ₹4,788/yr | **₹1,200/yr (20% off)** |
+| **Studio** | Pro | ₹799/mo | ₹9,588/yr | **₹2,400/yr (20% off)** |
 
-### India vs Global Comparison
+### Hidden Controls Per Plan
 
-| Plan | Global Price | India Price | India Discount | India Credits vs Global |
-|------|:---:|:---:|:---:|:---:|
-| Creator | $19/mo | ₹799 (~$9.50) | 50% | 100 vs 190 (53% of global) |
-| Pro | $49/mo | ₹1,999 (~$23.80) | 51% | 250 vs 490 (51% of global) |
-| Studio | $149/mo | ₹5,999 (~$71.40) | 52% | 750 vs 1,490 (50% of global) |
+| Plan | Display Name | Queue | Quality | Watermark |
+|------|---|---|---|:---:|
+| Free | Free | Slowest (priority 10) | 480p, RTX 3060 | ✅ |
+| Creator | Starter | Slow (priority 7) | 720p, RTX 4090 | ❌ |
+| Pro | Creator | Normal (priority 3) | 1080p, A100 | ❌ |
+| Studio | Pro | Priority (priority 1) | 1080p, A100 | ❌ |
 
-India users get the **same features, model access, and tier limits** — only the included credit allocation and price are adjusted for purchasing power parity.
+India users get the same model access per tier — volume limits and hidden quality controls protect margins.
 
 ---
 
@@ -391,19 +392,23 @@ VideoForge uses **BullMQ** with **Redis**. Lower priority numbers are processed 
 
 ### Per-Subscriber Unit Economics (Monthly)
 
-| Plan | Revenue (INR) | Revenue (USD) | Max API Cost | **Net Margin** |
-|------|:---:|:---:|:---:|:---:|
-| Creator (₹799) | ₹799 | ~$9.50 | $4.00 | **$5.50 (58%)** |
-| Pro (₹1,999) | ₹1,999 | ~$23.80 | $10.00 | **$13.80 (58%)** |
-| Studio (₹5,999) | ₹5,999 | ~$71.40 | $30.00 | **$41.40 (58%)** |
+| Plan | Display Name | Revenue (INR) | Revenue (USD) | Video Limit | Est. GPU Cost | **Net Margin** |
+|------|---|:---:|:---:|:---:|:---:|:---:|
+| Creator (₹199) | Starter | ₹199 | ~$2.40 | 50 videos | ~$0.70 | **~$1.70 (70%)** |
+| Pro (₹499) | Creator | ₹499 | ~$5.95 | 150 videos | ~$2.10 | **~$3.85 (65%)** |
+| Studio (₹999) | Pro | ₹999 | ~$11.90 | 400 videos | ~$4.76 | **~$7.14 (60%)** |
 
-### India Worst-Case (Kling v3 Pro — 84 credits per 15s video)
+> GPU cost estimate assumes average 10s WAN 2.2 render per video. Real cost is lower due to scene cache hits and dynamic downgrade triggers.
 
-| Plan | Credits | Videos | API Cost | Revenue | Margin |
-|------|:---:|:---:|:---:|:---:|:---:|
-| Creator | 100 | 1 video | $3.36 | $9.50 | **$6.14 (65%)** |
-| Pro | 250 | 2 videos | $6.72 | $23.80 | **$17.08 (72%)** |
-| Studio | 750 | 8 videos | $26.88 | $71.40 | **$44.52 (62%)** |
+### India Worst-Case (Kling v3 Pro on A100 — 30s video, 3 scenes)
+
+| Plan | Display Name | Videos | Est. API Cost | Revenue | Margin |
+|------|---|:---:|:---:|:---:|:---:|
+| Creator (₹199) | Starter | 50 | ~$1.08 | $2.40 | **$1.32 (55%)** |
+| Pro (₹499) | Creator | 150 | ~$3.24 | $5.95 | **$2.71 (46%)** |
+| Studio (₹999) | Pro | 400 | ~$8.64 | $11.90 | **$3.26 (27%)** |
+
+> Worst case assumes every video uses max duration + most expensive model. Dynamic downgrade engine prevents this in practice.
 
 ---
 
