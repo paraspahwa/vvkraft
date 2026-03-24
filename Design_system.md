@@ -1350,3 +1350,116 @@ Generate Video
 ### Contact: design@videoforge.ai
 
 
+
+---
+
+## 14. Suite Home Landing Page
+
+### 14.1 Overview
+
+The public landing page (`/`) uses an **OpenArt-style suite home** layout: a tool-discovery-first experience on a near-black canvas. All colours come from the existing design token set.
+
+### 14.2 Navigation Bar
+
+```
+bg:  #0a0a0a / 90% opacity, backdrop-blur-md
+border-bottom: 1px solid rgba(255,255,255,0.05)
+position: sticky top-0 z-50
+
+Layout: [Logo] ─────── [Category Tab Strip] ─────── [Auth Buttons]
+
+Category tab pill container
+  bg:  rgba(255,255,255,0.05)
+  border: 1px solid rgba(255,255,255,0.10)
+  border-radius: 9999px
+  padding: 6px 8px
+
+Individual tab
+  padding: 4px 12px
+  border-radius: 9999px
+  text: 14px gray-300, hover→white
+  hover bg: rgba(255,255,255,0.10)
+
+NEW badge
+  bg: var(--accent-400)  [#6366F1]
+  font-size: 9px, font-weight: 700, uppercase
+```
+
+### 14.3 Hero Banner Row
+
+Three side-by-side gradient cards. First card spans 3 columns (flex-[3]) on desktop; the other two share 2 columns each.
+
+```
+grid: 1 col (mobile) → 3 col 3:2:2 (lg)
+min-height: 280px
+border-radius: 1rem
+border: 1px solid rgba(255,255,255,0.08)
+
+Each card background: bespoke radial + directional gradient (accent / secondary / blue tones)
+Overlay: linear-gradient(to top, <accent>/80% → transparent)
+Glow blob: radial-gradient at 30% center, blurred (blur-3xl, opacity-20)
+
+Content (bottom-left)
+  subtitle: 12px, white/60%
+  title: 24px font-bold text-white
+  CTA button: bg rgba(255,255,255,0.10), border rgba(255,255,255,0.20), backdrop-blur
+```
+
+### 14.4 Suite Grid
+
+```
+heading: "VideoForge" (white) + "Suite" (gradient-text)
+subheading-right: "More →" link → /dashboard
+
+grid: 1 col (mobile) → 2 col (sm) → 4 col (lg) → 5 col (xl)
+gap: 12px
+
+Tool card
+  display: flex, align-items: center, gap: 12px
+  border-radius: 1rem
+  border: 1px solid rgba(255,255,255,0.08)
+  bg: rgba(255,255,255,0.03)
+  padding: 12px
+  hover: border-color accent-400/40, bg rgba(255,255,255,0.06)
+
+  Left — text area
+    Title: "<muted prefix> <accent-colored highlight>"
+      prefix: 14px font-semibold text-gray-400
+      highlight: 14px font-semibold, color = accent-400
+    Description: 12px text-gray-500, line-clamp-2
+    NEW badge (optional): same as nav badge
+
+  Right — thumbnail
+    size: 64×64px, border-radius: 0.75rem
+    background: tool-specific gradient
+    content: emoji (2rem)
+    ring: 1px solid rgba(255,255,255,0.10)
+    hover ring: accent-400/30
+```
+
+### 14.5 CTA Strip
+
+```
+border-radius: 1rem
+border: 1px solid accent-400/20
+bg: accent-400/5
+padding: 40px 32px
+text-align: center
+
+Glow blob: h-64 w-64 rounded-full bg-accent-400, opacity-10 blur-3xl (decorative)
+Heading: 3xl font-bold text-white
+Body: max-w-xl text-gray-400
+Buttons: row on sm+, stacked on mobile
+  Primary: bg-accent-gradient + shadow-accent-glow
+  Secondary: border border-white/10, bg-white/5
+```
+
+### 14.6 Footer
+
+```
+border-top: 1px solid rgba(255,255,255,0.05)
+padding: 32px 24px
+
+Layout: [Logo + Copyright] ─────────────── [Privacy · Terms · API Docs]
+text: 14px gray-400 / gray-500
+```
