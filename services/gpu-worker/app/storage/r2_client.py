@@ -16,7 +16,7 @@ _s3_client = None
 
 
 def _get_client():
-    """Lazy-initialise and return the S3-compatible R2 client."""
+    """Lazy-initialize and return the S3-compatible R2 client."""
     global _s3_client
     if _s3_client is None:
         _s3_client = boto3.client(

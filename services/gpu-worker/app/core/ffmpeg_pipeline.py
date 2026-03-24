@@ -1,7 +1,7 @@
 """FFmpeg video processing pipeline.
 
 Handles scene stitching, resolution adjustment, watermarking, and format
-optimisation for the final output video.
+optimization for the final output video.
 """
 
 from __future__ import annotations

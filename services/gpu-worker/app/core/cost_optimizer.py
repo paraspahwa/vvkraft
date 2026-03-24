@@ -1,4 +1,4 @@
-"""Cost optimiser and dynamic downgrade engine.
+"""Cost optimizer and dynamic downgrade engine.
 
 Tracks per-user and per-job costs and automatically applies cost-saving
 measures when thresholds are exceeded:

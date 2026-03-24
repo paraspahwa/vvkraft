@@ -1,4 +1,4 @@
-"""Tests for the cost optimiser."""
+"""Tests for the cost optimizer."""
 
 from __future__ import annotations
 

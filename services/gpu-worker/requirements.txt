@@ -6,4 +6,4 @@ boto3==1.35.81
 pydantic==2.10.4
 pydantic-settings==2.7.1
 httpx==0.28.1
-python-multipart==0.0.20
+python-multipart==0.0.22
