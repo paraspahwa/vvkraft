@@ -88,6 +88,9 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     longVideoMaxDurationSeconds: 0,
   },
   creator: {
+    // India display name: "Starter" (₹199/mo). India price is aggressively low to
+    // maximise conversion; margin is protected via RTX 4090 GPU (not A100),
+    // slower queue priority, and the dynamic downgrade engine.
     tier: "creator",
     videosPerDay: null,
     videosPerMonth: 50,
@@ -98,15 +101,17 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     characterConsistency: true,
     priorityQueue: false,
     monthlyPriceUsd: 19,
-    monthlyPriceInr: 799,
+    monthlyPriceInr: 199,
     includedCredits: 190,
-    includedCreditsIndia: 100,
+    includedCreditsIndia: 50,
     longVideoMaxDurationSeconds: 60,
   },
   pro: {
+    // India display name: "Creator" (₹499/mo). Upgrades to A100 GPU and priority
+    // queue at 3; video limit enforced server-side to cap GPU spend.
     tier: "pro",
     videosPerDay: null,
-    videosPerMonth: 200,
+    videosPerMonth: 150,
     maxDurationSeconds: 15,
     maxResolution: "1080p",
     watermark: false,
@@ -114,25 +119,28 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     characterConsistency: true,
     priorityQueue: true,
     monthlyPriceUsd: 49,
-    monthlyPriceInr: 1999,
+    monthlyPriceInr: 499,
     includedCredits: 490,
-    includedCreditsIndia: 250,
+    includedCreditsIndia: 150,
     longVideoMaxDurationSeconds: 120,
   },
   studio: {
+    // India display name: "Pro" (₹999/mo). Highest priority queue (1); A100 GPU;
+    // 400-video cap enforced server-side. Volume limit protects margin better than
+    // a credit cap because it caps the total GPU seconds consumed.
     tier: "studio",
     videosPerDay: null,
-    videosPerMonth: null,
-    maxDurationSeconds: 15,
+    videosPerMonth: 400,
+    maxDurationSeconds: 30,
     maxResolution: "1080p",
     watermark: false,
     motionControl: true,
     characterConsistency: true,
     priorityQueue: true,
     monthlyPriceUsd: 149,
-    monthlyPriceInr: 5999,
+    monthlyPriceInr: 999,
     includedCredits: 1490,
-    includedCreditsIndia: 750,
+    includedCreditsIndia: 400,
     longVideoMaxDurationSeconds: 120,
   },
 };

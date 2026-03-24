@@ -1,6 +1,6 @@
 """RunPod GPU client for dispatching video generation jobs.
 
-Supports GPU tiering with RTX 4090 and A100 endpoints.
+Supports GPU tiering with RTX 3060, RTX 4090, and A100 endpoints.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # GPU tier mapping based on subscription
 _TIER_GPU_MAP: dict[SubscriptionTier, GPUTier] = {
-    SubscriptionTier.FREE: GPUTier.RTX_4090,
+    SubscriptionTier.FREE: GPUTier.RTX_3060,
     SubscriptionTier.CREATOR: GPUTier.RTX_4090,
     SubscriptionTier.PRO: GPUTier.A100,
     SubscriptionTier.STUDIO: GPUTier.A100,
@@ -25,8 +25,9 @@ _TIER_GPU_MAP: dict[SubscriptionTier, GPUTier] = {
 
 # Per-second GPU cost estimates (USD)
 GPU_COST_PER_SECOND: dict[GPUTier, float] = {
+    GPUTier.RTX_3060: 0.00014,  # ~$0.50/hr
     GPUTier.RTX_4090: 0.00036,  # ~$1.30/hr
-    GPUTier.A100: 0.00083,  # ~$3.00/hr
+    GPUTier.A100: 0.00083,      # ~$3.00/hr
 }
 
 
@@ -39,6 +40,8 @@ def _endpoint_for_gpu(gpu_tier: GPUTier) -> str:
     """Return the RunPod serverless endpoint URL for the given GPU tier."""
     if gpu_tier == GPUTier.A100:
         return settings.RUNPOD_ENDPOINT_A100
+    if gpu_tier == GPUTier.RTX_3060:
+        return settings.RUNPOD_ENDPOINT_3060
     return settings.RUNPOD_ENDPOINT_4090
 
 
