@@ -24,6 +24,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     limits: TIER_LIMITS.free,
   },
   {
+    // Internal tier: "creator" — displayed to India users as "Starter" (₹199/mo)
     tier: "creator",
     name: "Starter",
     monthlyPriceUsd: 19,
@@ -48,6 +49,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     limits: TIER_LIMITS.creator,
   },
   {
+    // Internal tier: "pro" — displayed to India users as "Creator" (₹499/mo)
     tier: "pro",
     name: "Creator",
     monthlyPriceUsd: 49,
@@ -76,6 +78,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     limits: TIER_LIMITS.pro,
   },
   {
+    // Internal tier: "studio" — displayed to India users as "Pro" (₹999/mo)
     tier: "studio",
     name: "Pro",
     monthlyPriceUsd: 149,

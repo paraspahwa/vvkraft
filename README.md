@@ -252,7 +252,11 @@ videoforge/
 
 ## Features & Subscription Tiers
 
-| Feature | Free | Starter (₹199/mo) | Creator (₹499/mo) | Pro (₹999/mo) |
+> **Plan name mapping:** India display names differ from internal tier identifiers.
+> `creator` tier = "Starter" (₹199) · `pro` tier = "Creator" (₹499) · `studio` tier = "Pro" (₹999).
+> Global (USD) prices: Starter=$19/mo · Creator=$49/mo · Pro=$149/mo.
+
+| Feature | Free | Starter — India ₹199/mo | Creator — India ₹499/mo | Pro — India ₹999/mo |
 |---|:---:|:---:|:---:|:---:|
 | Videos / day | 3 | — | — | — |
 | Videos / month | — | 50 | 150 | 400 |
@@ -492,12 +496,12 @@ Scene splitting is implemented in `services/gpu-worker/app/core/scene_stitcher.p
 
 Hardware is assigned per subscription tier. Actual GPU assignments are hidden from users — they only see "fast" vs "fastest":
 
-| Plan | Display Name | GPU | Queue Priority | Max Resolution |
-|---|---|---|:---:|---|
-| Free | Free | **RTX 3060** | 10 (slowest) | 480p |
-| Creator (`creator`) | Starter | **RTX 4090** | 7 | 720p |
-| Pro (`pro`) | Creator | **A100** | 3 | 1080p |
-| Studio (`studio`) | Pro | **A100** | 1 (fastest) | 1080p |
+| Internal Tier | India Display Name | India Price | GPU | Queue Priority | Max Resolution |
+|---|---|:---:|---|:---:|---|
+| `free` | Free | ₹0 | **RTX 3060** | 10 (slowest) | 480p |
+| `creator` | **Starter** | ₹199/mo | **RTX 4090** | 7 | 720p |
+| `pro` | **Creator** | ₹499/mo | **A100** | 3 | 1080p |
+| `studio` | **Pro** | ₹999/mo | **A100** | 1 (fastest) | 1080p |
 
 > RunPod endpoints: `RUNPOD_ENDPOINT_3060`, `RUNPOD_ENDPOINT_4090`, `RUNPOD_ENDPOINT_A100` in `.env`.
 

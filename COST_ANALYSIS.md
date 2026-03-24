@@ -392,21 +392,21 @@ VideoForge uses **BullMQ** with **Redis**. Lower priority numbers are processed 
 
 ### Per-Subscriber Unit Economics (Monthly)
 
-| Plan | Display Name | Revenue (INR) | Revenue (USD) | Video Limit | Est. GPU Cost | **Net Margin** |
+| Internal Tier | India Display Name | Revenue (INR) | Revenue (USD) | Video Limit | Est. GPU Cost | **Net Margin** |
 |------|---|:---:|:---:|:---:|:---:|:---:|
-| Creator (₹199) | Starter | ₹199 | ~$2.40 | 50 videos | ~$0.70 | **~$1.70 (70%)** |
-| Pro (₹499) | Creator | ₹499 | ~$5.95 | 150 videos | ~$2.10 | **~$3.85 (65%)** |
-| Studio (₹999) | Pro | ₹999 | ~$11.90 | 400 videos | ~$4.76 | **~$7.14 (60%)** |
+| `creator` (₹199) | **Starter** | ₹199 | ~$2.40 | 50 videos | ~$0.70 | **~$1.70 (70%)** |
+| `pro` (₹499) | **Creator** | ₹499 | ~$5.95 | 150 videos | ~$2.10 | **~$3.85 (65%)** |
+| `studio` (₹999) | **Pro** | ₹999 | ~$11.90 | 400 videos | ~$4.76 | **~$7.14 (60%)** |
 
 > GPU cost estimate assumes average 10s WAN 2.2 render per video. Real cost is lower due to scene cache hits and dynamic downgrade triggers.
 
 ### India Worst-Case (Kling v3 Pro on A100 — 30s video, 3 scenes)
 
-| Plan | Display Name | Videos | Est. API Cost | Revenue | Margin |
+| Internal Tier | India Display Name | Videos | Est. API Cost | Revenue | Margin |
 |------|---|:---:|:---:|:---:|:---:|
-| Creator (₹199) | Starter | 50 | ~$1.08 | $2.40 | **$1.32 (55%)** |
-| Pro (₹499) | Creator | 150 | ~$3.24 | $5.95 | **$2.71 (46%)** |
-| Studio (₹999) | Pro | 400 | ~$8.64 | $11.90 | **$3.26 (27%)** |
+| `creator` (₹199) | **Starter** | 50 | ~$1.08 | $2.40 | **$1.32 (55%)** |
+| `pro` (₹499) | **Creator** | 150 | ~$3.24 | $5.95 | **$2.71 (46%)** |
+| `studio` (₹999) | **Pro** | 400 | ~$8.64 | $11.90 | **$3.26 (27%)** |
 
 > Worst case assumes every video uses max duration + most expensive model. Dynamic downgrade engine prevents this in practice.
 
