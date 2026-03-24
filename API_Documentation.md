@@ -741,3 +741,266 @@ print(f"Video URL:{result.video_url}")
 ### Documentation: docs.videoforge.ai
 
 
+
+---
+
+## 9. Templates API
+
+### GET `/api/trpc/templates.list`
+
+List all available 1-click video templates.
+
+**Query params (optional):**
+- `category`: Filter by category (`motivational` | `crypto` | `anime` | `gym` | `news` | `product` | `travel` | `food` | `education`)
+
+**Response:**
+```json
+[
+  {
+    "id": "motivational-reel",
+    "name": "Motivational Reel",
+    "category": "motivational",
+    "prompt": "Cinematic slow-motion athlete training...",
+    "aspectRatio": "9:16",
+    "durationSeconds": 10,
+    "suggestedModel": "fal-ai/wan/v2.2-a14b/text-to-video",
+    "minTier": "free",
+    "tags": ["fitness", "motivation", "reel", "shorts"],
+    "usageCount": 0
+  }
+]
+```
+
+### POST `/api/trpc/templates.generate`
+
+Generate a video from a template. **Requires auth.**
+
+**Body:**
+```json
+{
+  "templateId": "crypto-news-short",
+  "promptOverride": "Bitcoin hitting $100k",
+  "aspectRatio": "9:16"
+}
+```
+
+**Response:**
+```json
+{
+  "generationId": "gen_abc123",
+  "templateName": "Crypto News Short"
+}
+```
+
+---
+
+## 10. Auto-Script Generator API
+
+### POST `/api/trpc/autoScript.generate`
+
+Generate a structured script from a plain-English intent. **Requires auth.**
+
+**Body:**
+```json
+{
+  "userIntent": "make gym video",
+  "numScenes": 3,
+  "aspectRatio": "9:16",
+  "targetDurationSeconds": 30
+}
+```
+
+**Response:**
+```json
+{
+  "id": "script_xyz789",
+  "userIntent": "make gym video",
+  "style": "Fitness Motivation",
+  "title": "Fitness Motivation: Make Gym Video",
+  "aspectRatio": "9:16",
+  "totalDurationSeconds": 30,
+  "recommendedModel": "fal-ai/wan/v2.2-a14b/text-to-video",
+  "scenes": [
+    {
+      "sceneIndex": 0,
+      "visualDescription": "Slow-motion athlete performing gym in a modern gym, dramatic lighting",
+      "caption": "No excuses. Just results.",
+      "durationSeconds": 10,
+      "musicMood": "energetic"
+    }
+  ],
+  "createdAt": "2026-03-24T10:00:00.000Z"
+}
+```
+
+### GET `/api/trpc/autoScript.list`
+
+List previously generated scripts for the authenticated user.
+
+---
+
+## 11. Export API
+
+### POST `/api/trpc/export.create`
+
+Request an export for a completed video. **Requires auth.**
+
+**Body:**
+```json
+{
+  "generationId": "gen_abc123",
+  "target": "local"
+}
+```
+
+**`target` values:** `youtube_shorts` | `instagram_reels` | `tiktok` | `local`
+
+**Response (local):**
+```json
+{
+  "exportJobId": "exp_def456",
+  "target": "local",
+  "status": "completed",
+  "downloadUrl": "https://r2.cloudflare.com/signed/...",
+  "platformUrl": null
+}
+```
+
+**Response (social):**
+```json
+{
+  "exportJobId": "exp_def456",
+  "target": "youtube_shorts",
+  "status": "pending",
+  "downloadUrl": null,
+  "platformUrl": null,
+  "message": "Your video is being prepared for YouTube Shorts..."
+}
+```
+
+### GET `/api/trpc/export.getStatus?input={"exportJobId":"exp_def456"}`
+
+Poll export job status. **Requires auth.**
+
+### GET `/api/trpc/export.list`
+
+List all export jobs for the authenticated user.
+
+---
+
+## 12. Community API
+
+### GET `/api/trpc/community.trending`
+
+List trending community videos. **Public.**
+
+**Query params:** `limit` (1–50, default 20), `cursor` (for pagination)
+
+**Response:**
+```json
+{
+  "videos": [
+    {
+      "id": "comm_abc",
+      "generationId": "gen_abc123",
+      "displayName": "Alex",
+      "videoUrl": "https://...",
+      "prompt": "Cinematic sunrise...",
+      "likes": 42,
+      "remixCount": 7,
+      "createdAt": "2026-03-24T10:00:00.000Z"
+    }
+  ],
+  "nextCursor": "comm_xyz"
+}
+```
+
+### POST `/api/trpc/community.publish`
+
+Publish a completed generation to the community feed. **Requires auth.**
+
+```json
+{ "generationId": "gen_abc123" }
+```
+
+### POST `/api/trpc/community.like`
+
+Toggle like on a community video. **Requires auth.**
+
+```json
+{ "communityVideoId": "comm_abc" }
+```
+
+### POST `/api/trpc/community.remix`
+
+Generate a new video seeded from a community post. **Requires auth.**
+
+```json
+{
+  "sourceGenerationId": "gen_abc123",
+  "prompt": "same style but underwater",
+  "durationSeconds": 10,
+  "aspectRatio": "9:16"
+}
+```
+
+---
+
+## 13. Admin / Price-Control Dashboard API
+
+> **Admin only** — requires `studio` tier (or a dedicated admin Firebase custom claim in production).
+
+### GET `/api/trpc/admin.platformMetrics`
+
+Platform-wide summary for the current billing month.
+
+**Response:**
+```json
+{
+  "totalRevenueInr": 49800,
+  "totalRevenueUsd": 592.86,
+  "totalGpuCostUsd": 178.45,
+  "totalNetMarginUsd": 414.41,
+  "totalVideosGenerated": 3420,
+  "activeUsers": 124,
+  "averageRetryRate": 0.023,
+  "downgradedUsers": 3,
+  "periodStart": "2026-03-01T00:00:00.000Z",
+  "periodEnd": "2026-03-31T00:00:00.000Z"
+}
+```
+
+### GET `/api/trpc/admin.userMetrics?input={"limit":20,"onlyDowngraded":false}`
+
+Paginated per-user metrics table, sorted by net margin (worst first).
+
+**Response:** Array of `AdminUserMetrics` objects with fields:
+`userId`, `email`, `tier`, `revenueInr`, `revenueUsd`, `gpuCostUsd`, `netMarginUsd`, `videosGenerated`, `retryRate`, `gpuUsageSeconds`, `isDowngraded`, `updatedAt`
+
+### POST `/api/trpc/admin.setDowngradeFlag`
+
+Manually flag a user for quality downgrade (or clear the flag).
+
+```json
+{
+  "userId": "uid_abc",
+  "downgraded": true,
+  "reason": "Cost exceeds revenue for 3 consecutive months"
+}
+```
+
+**Auto-downgrade rule:** The system automatically sets `isDowngraded = true` when a user's GPU cost exceeds their subscription revenue for the current billing cycle. The Python `cost_optimizer.py` reads this flag at render time to apply quality degradation.
+
+---
+
+## Changelog
+
+### v1.1.0 (2026-03-24)
+
+- Added **Templates API** — 9 launch-ready 1-click templates
+- Added **Auto-Script Generator** — plain-English → structured scene script
+- Added **Export API** — local download + async social platform export jobs
+- Added **Community API** — trending feed, publish, like, remix
+- Added **Admin / Price-Control Dashboard API** — per-user and platform-wide metrics
+- Added `getPresignedDownloadUrl` to R2 helpers
+- Added `adminProcedure` middleware to tRPC

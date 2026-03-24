@@ -1008,3 +1008,144 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 **Contact:** product@videoforge.ai
 
 
+
+---
+
+## 11. New Features — v1.1 (March 2026)
+
+### 11.1 Price-Control Dashboard
+
+**Priority:** P0 (Critical — profitability protection)
+
+**Description:** Internal admin dashboard that surfaces per-user and platform-wide financial metrics in real time. When cost exceeds revenue for a user, the system automatically degrades quality and slows the queue.
+
+**Requirements:**
+
+| ID | Requirement | Acceptance Criteria |
+|---|---|---|
+| PCD-001 | Display Revenue per user (INR + USD) | INR subscription revenue from tier; USD equivalent at fixed exchange rate |
+| PCD-002 | Display GPU cost per user (USD) | Computed from actual render time × GPU cost per second |
+| PCD-003 | Display videos generated per user per billing cycle | Count from Firestore `generations` collection |
+| PCD-004 | Display retry rate per user | Failed scenes / total scenes ratio |
+| PCD-005 | Display GPU usage in seconds | Sum of (durationSeconds × 3 render overhead) per generation |
+| PCD-006 | Auto-downgrade when cost > revenue | Python `cost_optimizer.py` reads `adminDowngraded` flag; reduces resolution, FPS, and retry limit |
+| PCD-007 | Admin can manually set/clear downgrade flag | `admin.setDowngradeFlag` tRPC procedure with reason |
+| PCD-008 | Platform summary metrics | Total revenue, total cost, margin, active users, downgraded count |
+
+**Auto-Downgrade Rules:**
+
+| Trigger | Action |
+|---|---|
+| `gpuCostUsd > revenueUsd` (current cycle) | Set `isDowngraded = true`; apply 480p cap, 16fps, 1 retry limit |
+| System load > 0.8 + Free/Creator tier | Apply queue slow-down |
+| Free tier (always) | Watermark applied |
+
+### 11.2 1-Click Video Templates
+
+**Priority:** P1
+
+**Description:** Pre-built video generation templates that users can launch in one click without crafting a prompt. Templates are designed for common content creator use cases.
+
+**Available Templates (v1.1):**
+
+| Template | Category | Aspect Ratio | Min Tier | Suggested Model |
+|---|---|:---:|:---:|---|
+| Motivational Reel | motivational | 9:16 | Free | WAN 2.2 |
+| Gym Workout Video | gym | 9:16 | Free | WAN 2.2 |
+| Crypto News Short | crypto | 9:16 | Starter | LTXV 13B |
+| Anime Edit | anime | 9:16 | Starter | Kling v2.6 Pro |
+| News Explainer | news | 16:9 | Free | WAN 2.2 |
+| Product Showcase | product | 1:1 | Starter | Kling v2.6 Pro |
+| Travel Reel | travel | 9:16 | Free | WAN 2.2 |
+| Food Reel | food | 9:16 | Free | WAN 2.2 |
+| Educational Explainer | education | 16:9 | Free | LTXV 13B |
+
+**Requirements:**
+
+| ID | Requirement |
+|---|---|
+| TPL-001 | List all templates (public, no auth required) |
+| TPL-002 | Filter templates by category |
+| TPL-003 | Enforce `minTier` — return FORBIDDEN if user tier is insufficient |
+| TPL-004 | Allow `promptOverride` to append extra context to the base prompt |
+| TPL-005 | Record template usage in the generation record for analytics |
+
+### 11.3 Auto-Script Generator
+
+**Priority:** P1
+
+**Description:** User types a plain-English intent (e.g. "make gym video") and the system generates a full structured script with per-scene visual descriptions, captions, music mood, and a recommended AI model. The script can be passed directly to the generation pipeline.
+
+**Requirements:**
+
+| ID | Requirement |
+|---|---|
+| ASG-001 | Accept intent string (3–300 characters) |
+| ASG-002 | Detect content style from keywords (Fitness, Crypto, Anime, Food, Travel, Creative) |
+| ASG-003 | Generate N scenes (1–10, default 3) with visual description, caption, duration, music mood |
+| ASG-004 | Recommend appropriate AI model per detected style |
+| ASG-005 | Persist script to Firestore `generatedScripts` collection |
+| ASG-006 | Allow listing previous scripts |
+| ASG-007 | (Future) Replace keyword detection with LLM (GPT-4o-mini / Gemini) |
+
+### 11.4 Direct Export
+
+**Priority:** P1
+
+**Description:** Users can export completed videos directly to social platforms or download locally.
+
+**Supported Targets:**
+
+| Target | Implementation |
+|---|---|
+| `local` | Signed R2 URL (expires 1 hour), `Content-Disposition: attachment` |
+| `youtube_shorts` | Async job (pending OAuth integration with YouTube Data API v3) |
+| `instagram_reels` | Async job (pending OAuth integration with Instagram Graph API) |
+| `tiktok` | Async job (pending OAuth integration with TikTok API) |
+
+**Requirements:**
+
+| ID | Requirement |
+|---|---|
+| EXP-001 | Local download available immediately for all completed videos |
+| EXP-002 | Social export creates async `exportJobs` Firestore record |
+| EXP-003 | Poll endpoint to check export job status |
+| EXP-004 | Only completed videos can be exported |
+| EXP-005 | Export jobs scoped to the owning user |
+
+### 11.5 Watermark Strategy
+
+| Tier | Watermark |
+|---|:---:|
+| Free | ✅ Applied at FFmpeg stitch step |
+| Starter (₹199) | ❌ |
+| Creator (₹499) | ❌ |
+| Pro (₹999) | ❌ |
+
+Watermark is enforced by the GPU worker (`cost_optimizer.py`) and cannot be bypassed client-side.
+
+### 11.6 Community Content Loop
+
+**Priority:** P2
+
+**Description:** Trending video feed where users can browse, like, and remix public generations.
+
+**Requirements:**
+
+| ID | Requirement |
+|---|---|
+| COM-001 | Trending feed ordered by likes (cursor-paginated) |
+| COM-002 | Users can opt-in to publish a completed video |
+| COM-003 | Like/unlike toggle (idempotent) |
+| COM-004 | Remix: generate a new video seeded from a community prompt |
+| COM-005 | Track `remixCount` on source video |
+
+### 11.7 Execution Order
+
+1. ✅ **Build Wan + LTX pipeline** — WAN 2.2 and LTXV routing implemented in `model-router.ts` and GPU worker `video_tasks.py`
+2. ✅ **Add routing engine** — `gpu_router.py` + `model-router.ts` (tier → GPU + model)
+3. ✅ **Build scene stitching** — `scene_stitcher.py` (3 × 10s scenes → FFmpeg stitch)
+4. ✅ **Launch with templates** — 9 templates in `apps/web/lib/templates.ts`, `templates` tRPC router
+
+**Document Control:**
+- v1.1 (2026-03-24): Added Price-Control Dashboard, Templates, Auto-Script Generator, Export, Watermark Strategy, Community Content Loop

@@ -211,3 +211,162 @@ export interface PricingPlan {
   limits: TierLimits;
   highlighted: boolean;
 }
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
+/** Category slug for 1-click video templates */
+export type TemplateCategory =
+  | "motivational"
+  | "crypto"
+  | "anime"
+  | "gym"
+  | "news"
+  | "product"
+  | "travel"
+  | "food"
+  | "education";
+
+/** A 1-click video template the user can launch immediately */
+export interface VideoTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: TemplateCategory;
+  thumbnailUrl: string | null;
+  /** Pre-filled prompt injected into the generation form */
+  prompt: string;
+  negativePrompt: string | null;
+  aspectRatio: "16:9" | "9:16" | "1:1";
+  durationSeconds: number;
+  /** Suggested model for best results */
+  suggestedModel: VideoModel;
+  /** Minimum tier required to use this template */
+  minTier: SubscriptionTier;
+  tags: string[];
+  usageCount: number;
+  /** Example output URL (preview in the gallery) */
+  exampleVideoUrl: string | null;
+}
+
+// ── Auto-Script Generator ─────────────────────────────────────────────────────
+
+/** A single scene within an AI-generated script */
+export interface ScriptScene {
+  sceneIndex: number;
+  /** Visual description of what happens on screen */
+  visualDescription: string;
+  /** Spoken or on-screen caption text */
+  caption: string;
+  /** Duration of this scene in seconds */
+  durationSeconds: number;
+  /** Background music mood hint */
+  musicMood: string | null;
+}
+
+/** A full auto-generated script broken into scenes */
+export interface GeneratedScript {
+  id: string;
+  userId: string;
+  /** Original plain-English user input (e.g. "make gym video") */
+  userIntent: string;
+  /** Video style derived from the intent */
+  style: string;
+  /** Recommended aspect ratio for the platform */
+  aspectRatio: "16:9" | "9:16" | "1:1";
+  scenes: ScriptScene[];
+  /** Overall caption / title for the video */
+  title: string;
+  /** Total estimated duration in seconds */
+  totalDurationSeconds: number;
+  /** Fal.ai model recommended for this script */
+  recommendedModel: VideoModel;
+  createdAt: Date;
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+/** Supported direct-export destinations */
+export type ExportTarget = "youtube_shorts" | "instagram_reels" | "tiktok" | "local";
+
+/** Metadata for a requested export job */
+export interface ExportJob {
+  id: string;
+  userId: string;
+  generationId: string;
+  target: ExportTarget;
+  status: "pending" | "processing" | "completed" | "failed";
+  /** External URL on the platform (YouTube, Instagram, etc.) after upload */
+  platformUrl: string | null;
+  /** Signed download URL for local export */
+  downloadUrl: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ── Community ─────────────────────────────────────────────────────────────────
+
+/** A video surfaced in the community trending feed */
+export interface CommunityVideo {
+  id: string;
+  /** Source generation ID */
+  generationId: string;
+  userId: string;
+  displayName: string;
+  /** Public video URL */
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  prompt: string;
+  likes: number;
+  remixCount: number;
+  createdAt: Date;
+}
+
+/** A remix request — generates a new video based on an existing community video */
+export interface RemixRequest {
+  sourceGenerationId: string;
+  prompt: string;
+  durationSeconds: number;
+  aspectRatio: "16:9" | "9:16" | "1:1";
+}
+
+// ── Admin / Price-Control Dashboard ──────────────────────────────────────────
+
+/** Per-user metrics visible in the admin price-control dashboard */
+export interface AdminUserMetrics {
+  userId: string;
+  email: string;
+  tier: SubscriptionTier;
+  /** Total revenue from this user (INR subscription + credit purchases) */
+  revenueInr: number;
+  /** Estimated GPU cost incurred for this user (USD) */
+  gpuCostUsd: number;
+  /** Revenue in USD equivalent */
+  revenueUsd: number;
+  /** Net margin (revenueUsd - gpuCostUsd) */
+  netMarginUsd: number;
+  /** Total videos generated this billing cycle */
+  videosGenerated: number;
+  /** Rate of failed scene retries (0–1) */
+  retryRate: number;
+  /** Total GPU seconds consumed this cycle */
+  gpuUsageSeconds: number;
+  /** Whether the auto-downgrade engine is currently active for this user */
+  isDowngraded: boolean;
+  updatedAt: Date;
+}
+
+/** Snapshot of platform-wide metrics for the dashboard */
+export interface PlatformMetrics {
+  totalRevenueInr: number;
+  totalRevenueUsd: number;
+  totalGpuCostUsd: number;
+  totalNetMarginUsd: number;
+  totalVideosGenerated: number;
+  activeUsers: number;
+  averageRetryRate: number;
+  /** Number of users currently in auto-downgraded state */
+  downgradedUsers: number;
+  periodStart: Date;
+  periodEnd: Date;
+}

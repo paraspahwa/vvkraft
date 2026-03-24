@@ -74,6 +74,26 @@ export async function getPresignedUploadUrl(
 }
 
 /**
+ * Generate a pre-signed URL for downloading / reading an object from R2.
+ * Used for secure local export (the URL expires after `expiresIn` seconds).
+ */
+export async function getPresignedDownloadUrl(
+  key: string,
+  filename: string,
+  expiresIn = 3600
+): Promise<string> {
+  return getSignedUrl(
+    r2Client,
+    new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${filename}"`,
+    }),
+    { expiresIn }
+  );
+}
+
+/**
  * Build R2 storage key for a user's video
  */
 export function buildVideoKey(userId: string, generationId: string): string {

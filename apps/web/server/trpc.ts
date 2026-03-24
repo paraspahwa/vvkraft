@@ -59,3 +59,22 @@ const isAuthed = t.middleware(({ ctx, next }) => {
 });
 
 export const protectedProcedure = t.procedure.use(isAuthed);
+
+// Admin-only middleware (checks user.tier === "studio" as a proxy for admin access)
+// In production, replace with a dedicated admin role/claim in Firebase Auth.
+const isAdmin = t.middleware(({ ctx, next }) => {
+  if (!ctx.userId || !ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "You must be logged in" });
+  }
+  if (ctx.user.tier !== "studio") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next({
+    ctx: {
+      userId: ctx.userId,
+      user: ctx.user,
+    },
+  });
+});
+
+export const adminProcedure = t.procedure.use(isAdmin);
