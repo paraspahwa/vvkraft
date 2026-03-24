@@ -96,9 +96,19 @@
 
 > 🚀 **Live demo coming soon.** Star the repo to be notified on launch.
 
-| Web App — Generate Screen | Mobile App — Gallery |
+### Suite Home (Landing Page)
+
+The public-facing landing page is styled after OpenArt's suite home — a dark, tool-discovery-first layout featuring:
+
+- **Sticky navigation bar** — logo, category tab strip (Generate · Gallery · Characters · Upscale · Long Video · Pricing), Login and "Start for Free" buttons.
+- **Hero banner row** — three large gradient-filled feature cards (Generate Cinematic Videos · Consistent AI Characters · Upscale to 4K), each with a direct CTA.
+- **VideoForge Suite grid** — 10 tool cards arranged in a 5-column grid (2 rows). Each card shows a two-tone title (e.g. *Text to* **Video**), a description, and a coloured emoji thumbnail. Cards link directly to the relevant app page.
+- **CTA strip** — full-width call-to-action with primary and secondary buttons.
+- **Footer** — links to Privacy, Terms, and API Docs.
+
+| Web App — Suite Home | Mobile App — Gallery |
 |:---:|:---:|
-| *(screenshot placeholder)* | *(screenshot placeholder)* |
+| *(screenshot: dark suite home with hero banners and tool grid)* | *(screenshot placeholder)* |
 
 **Generation flow (30-second walkthrough):**
 
@@ -966,7 +976,7 @@ These are applied silently — users are never told about them:
 - [x] Shared UI component library (`packages/ui`) — Button, Card, Badge, Input, Textarea, Progress, Skeleton
 
 #### Web App (`apps/web`)
-- [x] **Landing page** — hero, feature cards, testimonials, CTA, footer
+- [x] **Landing page** — suite home UI: sticky nav with category tabs, hero banner row (3 gradient cards), 10-tool suite grid, CTA strip, footer (inspired by OpenArt suite home)
 - [x] **Auth pages** — login + register with Firebase email/password
 - [x] **Dashboard** — stats (credits, total videos, this-month, plan), quick actions, upgrade banner, recent generations
 - [x] **Generate page** — prompt form, negative prompt, duration, aspect ratio, resolution, model selection from full catalog, real-time status polling
