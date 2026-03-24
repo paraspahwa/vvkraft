@@ -1,0 +1,75 @@
+# VideoForge – Core System (Final Architecture)
+#
+# Frontend  → Next.js       (apps/web – separate deployment)
+# Backend   → FastAPI       (gpu-worker service)
+# Queue     → Redis + Celery
+# GPU       → RunPod        (4090 + A100 mix)
+# Storage   → Cloudflare R2
+# Processing→ FFmpeg pipeline
+
+services:
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./services/gpu-worker
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Celery GPU Worker ──────────────────────────────────────────────────────
+  celery-gpu:
+    build:
+      context: ./services/gpu-worker
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A app.tasks.celery_app worker --loglevel=info --queues=gpu --concurrency=4
+
+  # ── Celery Default Worker ──────────────────────────────────────────────────
+  celery-default:
+    build:
+      context: ./services/gpu-worker
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A app.tasks.celery_app worker --loglevel=info --queues=default --concurrency=2
+
+volumes:
+  redis_data:
