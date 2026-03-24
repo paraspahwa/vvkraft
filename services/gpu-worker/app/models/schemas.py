@@ -24,6 +24,24 @@ class GPUTier(str, Enum):
     A100 = "a100"
 
 
+class VideoModel(str, Enum):
+    """Video generation models ordered from cheapest to highest quality."""
+
+    LTX = "ltx"              # Fast preview model – used for all draft previews
+    WAN_1_3B = "wan_1_3b"   # MVP main model – cheap, good quality
+    WAN_14B = "wan_14b"      # Scale main model – better quality
+    HUNYUAN = "hunyuan"      # Scale/Premium – realism
+    MOCHI = "mochi"          # Premium – cinematic quality
+
+
+class ModelStack(str, Enum):
+    """Named capability stacks that group model selections by use-case."""
+
+    MVP = "mvp"          # Wan 1.3B main + LTX preview  ($0.02–$0.05/video)
+    SCALE = "scale"      # Wan 14B main + LTX preview
+    PREMIUM = "premium"  # Mochi/Hunyuan main + LTX preview
+
+
 class GenerationStatus(str, Enum):
     PENDING = "pending"
     DRAFT_PREVIEW = "draft_preview"

@@ -8,6 +8,12 @@ GPU Tier hierarchy:
   Creator   → RTX 4090  (Starter plan, ₹199/month)
   Pro       → A100      (Creator plan, ₹499/month)
   Studio    → A100      (Pro plan, ₹999/month, priority queue)
+
+Model routing (multi-model stack):
+  Free      → LTX (main) + LTX (preview)          – MVP lite
+  Creator   → Wan 1.3B (main) + LTX (preview)     – MVP stack   $0.02–$0.05/video
+  Pro       → Wan 14B (main) + LTX (preview)       – Scale stack
+  Studio    → Mochi (main) + LTX (preview)         – Premium stack
 """
 
 from __future__ import annotations
@@ -15,7 +21,13 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from app.models.schemas import GPUTier, SubscriptionTier, VideoResolution
+from app.models.schemas import (
+    GPUTier,
+    ModelStack,
+    SubscriptionTier,
+    VideoModel,
+    VideoResolution,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +42,10 @@ class GPURoutingResult:
     max_resolution: VideoResolution
     add_watermark: bool
     estimated_cost_per_second_usd: float
+    # Multi-model fields
+    main_model: VideoModel
+    preview_model: VideoModel
+    model_stack: ModelStack
 
 
 # GPU tier map: subscription tier → hardware
@@ -74,10 +90,36 @@ _COST_PER_SECOND: dict[GPUTier, float] = {
     GPUTier.A100: 0.00083,      # ~$3.00/hr
 }
 
+# Model routing: subscription tier → primary generation model.
+# LTX is always used as the preview/draft model regardless of tier.
+#
+#  FREE     → LTX        (fast, cheap – suitable for watermarked demos)
+#  CREATOR  → Wan 1.3B   (MVP stack: $0.02–$0.05/video)
+#  PRO      → Wan 14B    (Scale stack: better quality)
+#  STUDIO   → Mochi      (Premium stack: cinematic quality)
+_MAIN_MODEL_MAP: dict[SubscriptionTier, VideoModel] = {
+    SubscriptionTier.FREE: VideoModel.LTX,
+    SubscriptionTier.CREATOR: VideoModel.WAN_1_3B,
+    SubscriptionTier.PRO: VideoModel.WAN_14B,
+    SubscriptionTier.STUDIO: VideoModel.MOCHI,
+}
+
+_MODEL_STACK_MAP: dict[SubscriptionTier, ModelStack] = {
+    SubscriptionTier.FREE: ModelStack.MVP,
+    SubscriptionTier.CREATOR: ModelStack.MVP,
+    SubscriptionTier.PRO: ModelStack.SCALE,
+    SubscriptionTier.STUDIO: ModelStack.PREMIUM,
+}
+
+# LTX is the preview model for every tier
+_PREVIEW_MODEL: VideoModel = VideoModel.LTX
+
 
 def route_gpu(tier: SubscriptionTier) -> GPURoutingResult:
-    """Determine GPU allocation for the given subscription tier."""
+    """Determine GPU allocation and model selection for the given subscription tier."""
     gpu_tier = _GPU_MAP[tier]
+    main_model = _MAIN_MODEL_MAP[tier]
+    model_stack = _MODEL_STACK_MAP[tier]
 
     result = GPURoutingResult(
         gpu_tier=gpu_tier,
@@ -86,12 +128,17 @@ def route_gpu(tier: SubscriptionTier) -> GPURoutingResult:
         max_resolution=_MAX_RESOLUTION[tier],
         add_watermark=(tier == SubscriptionTier.FREE),
         estimated_cost_per_second_usd=_COST_PER_SECOND[gpu_tier],
+        main_model=main_model,
+        preview_model=_PREVIEW_MODEL,
+        model_stack=model_stack,
     )
 
     logger.info(
-        "GPU routing: tier=%s → gpu=%s priority=%d",
+        "GPU routing: tier=%s → gpu=%s model=%s stack=%s priority=%d",
         tier.value,
         gpu_tier.value,
+        main_model.value,
+        model_stack.value,
         result.queue_priority,
     )
     return result

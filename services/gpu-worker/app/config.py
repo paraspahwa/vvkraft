@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     RUNPOD_ENDPOINT_4090: str = ""
     RUNPOD_ENDPOINT_A100: str = ""
 
+    # Per-model RunPod serverless endpoint IDs (one endpoint per model/GPU combo)
+    RUNPOD_ENDPOINT_LTX: str = ""       # LTX on RTX 3060 – preview/draft
+    RUNPOD_ENDPOINT_WAN_1_3B: str = ""  # Wan 1.3B on RTX 4090 – MVP main
+    RUNPOD_ENDPOINT_WAN_14B: str = ""   # Wan 14B on A100 – Scale main
+    RUNPOD_ENDPOINT_HUNYUAN: str = ""   # Hunyuan on A100 – realism
+    RUNPOD_ENDPOINT_MOCHI: str = ""     # Mochi on A100 – cinematic
+
     # ── Cloudflare R2 ──────────────────────────────────────────────────────────
     R2_ACCOUNT_ID: str = ""
     R2_ACCESS_KEY_ID: str = ""
