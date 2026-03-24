@@ -164,13 +164,19 @@ videoforge/
 │   │   │   ├── generation/           # GenerationForm + StatusCard + LongVideoForm
 │   │   │   └── layout/               # AppLayout, Sidebar, Header
 │   │   ├── server/
-│   │   │   ├── trpc.ts               # tRPC context + middleware
+│   │   │   ├── trpc.ts               # tRPC context + middleware (+ adminProcedure)
 │   │   │   └── routers/
 │   │   │       ├── _app.ts           # Root router
 │   │   │       ├── generation.ts     # Video generation CRUD
 │   │   │       ├── user.ts           # User profile + stats
 │   │   │       ├── billing.ts        # Razorpay checkout + verification
-│   │   │       └── character.ts      # Character management
+│   │   │       ├── character.ts      # Character management
+│   │   │       ├── upscaler.ts       # Video upscaling (fal-ai/video-upscaler)
+│   │   │       ├── templates.ts      # 1-click video templates
+│   │   │       ├── autoScript.ts     # Auto-Script Generator
+│   │   │       ├── admin.ts          # Price-Control Dashboard (admin only)
+│   │   │       ├── community.ts      # Community trending feed + remix
+│   │   │       └── export.ts         # Export to YouTube/Instagram/TikTok/local
 │   │   ├── lib/
 │   │   │   ├── db.ts                 # Firestore operations
 │   │   │   ├── fal.ts                # Fal.ai client + types
@@ -179,9 +185,10 @@ videoforge/
 │   │   │   ├── model-router.ts       # Tier → model mapping + credit calc
 │   │   │   ├── pricing.ts            # Razorpay plan IDs + pricing config
 │   │   │   ├── queue.ts              # BullMQ queue definitions
-│   │   │   ├── r2.ts                 # Cloudflare R2 helpers
+│   │   │   ├── r2.ts                 # Cloudflare R2 helpers (incl. presigned download)
 │   │   │   ├── razorpay-client.ts    # Client-side Razorpay script loader
-│   │   │   └── redis.ts              # ioredis singleton
+│   │   │   ├── redis.ts              # ioredis singleton
+│   │   │   └── templates.ts          # Video template catalogue (9 templates)
 │   │   └── hooks/
 │   │       ├── use-generation.ts     # Generation state hook
 │   │       └── use-trpc-auth.ts      # Auth-aware tRPC hook
@@ -812,12 +819,25 @@ These are applied silently — users are never told about them:
 | **Deployment config** | No Vercel `vercel.json`, no Railway/Render config, no environment setup docs. |
 | **Push notifications** | `expo-notifications` is not installed. No server-side push trigger on video completion. |
 | **Email notifications** | No transactional email (e.g., Resend, SendGrid) for signup confirmation or video-ready alerts. |
-| **Video download** | No download button on web or mobile. |
-| **Admin dashboard** | No internal admin interface for managing users, viewing revenue, or moderating content. |
-| **Rate limiting** | No IP-based or per-user request rate limiting middleware on tRPC or webhook routes. |
-| **Privacy / Terms / API pages** | Footer links point to `#` — these pages don't exist. |
 | **Error monitoring** | No Sentry or similar error tracking integrated. |
 | **Analytics** | No usage analytics (Mixpanel, PostHog, etc.) beyond the basic Firestore counters. |
+| **Social OAuth for export** | YouTube / Instagram / TikTok export requires per-platform OAuth flows (pending platform credential setup). |
+
+---
+
+### ✅ New Features Added (This Release)
+
+| Feature | Router / File | What Was Built |
+|---|---|---|
+| **1-Click Templates** | `templates` tRPC router, `apps/web/lib/templates.ts` | 9 launch-ready templates (Motivational Reel, Gym Workout, Crypto News, Anime Edit, News Explainer, Product Showcase, Travel Reel, Food Reel, Educational Explainer). Each template includes pre-filled prompt, suggested model, tier gating, aspect ratio, and duration. `templates.list`, `templates.getById`, `templates.generate` procedures. |
+| **Auto-Script Generator** | `autoScript` tRPC router | User enters plain-English intent ("make gym video") → system generates a structured script with scene-by-scene visual descriptions, captions, music mood, and recommended model. Keyword → style mapping covers Fitness, Crypto, Anime, Food, Travel, and fallback Creative styles. Scripts persisted to Firestore `generatedScripts` collection. |
+| **Price-Control Dashboard** | `admin` tRPC router | Per-user metrics: Revenue (INR + USD), GPU cost (USD), net margin, videos generated, retry rate, GPU usage seconds, auto-downgrade status. Platform-wide summary: total revenue, total GPU cost, total margin, active users, average retry rate, downgraded user count. Auto-downgrade rule: if `gpuCostUsd > revenueUsd`, user is flagged for quality downgrade. Admin can manually set/clear downgrade flags. Gated behind `studio` tier (replace with Firebase custom claim in production). |
+| **Direct Export** | `export` tRPC router | `local` export: generates a signed R2 download URL (expires in 1 hour) for browser download. `youtube_shorts`, `instagram_reels`, `tiktok`: creates async `exportJobs` Firestore record (status: pending) ready for background OAuth upload worker. `export.create`, `export.getStatus`, `export.list` procedures. |
+| **Community Content Loop** | `community` tRPC router | Trending feed (`community.trending`) ordered by likes with cursor pagination. Publish any completed generation (`community.publish`). Like/unlike toggle (`community.like`). Remix: generate a new video seeded from a community post's prompt (`community.remix`). |
+| **Presigned Download URL** | `apps/web/lib/r2.ts` | New `getPresignedDownloadUrl()` helper for generating time-limited download links with `Content-Disposition: attachment` headers. |
+| **Admin middleware** | `apps/web/server/trpc.ts` | `adminProcedure` — enforces `studio` tier for admin-only routes. |
+| **Shared types** | `packages/shared/src/types/index.ts` | `VideoTemplate`, `ScriptScene`, `GeneratedScript`, `ExportTarget`, `ExportJob`, `CommunityVideo`, `RemixRequest`, `AdminUserMetrics`, `PlatformMetrics` |
+| **Shared schemas** | `packages/shared/src/schemas/index.ts` | `templateGenerateSchema`, `autoScriptRequestSchema`, `exportRequestSchema`, `communityRemixSchema`, `templateCategorySchema`, `exportTargetSchema` |
 
 ---
 
@@ -831,9 +851,13 @@ These are applied silently — users are never told about them:
 |:---:|---|---|
 | 🔴 High | **Google / Social OAuth** | Wire up Firebase Google, Apple, GitHub providers |
 | 🔴 High | **Rate limiting** | IP-based + per-user middleware on tRPC & webhook routes |
+| 🟠 Med | **Template UI page** | `/templates` page with category filter, preview cards, and 1-click launch |
+| 🟠 Med | **Auto-Script UI** | `/generate/script` page with intent input, scene preview, and "Generate from Script" button |
+| 🟠 Med | **Price-Control Dashboard UI** | `/admin/dashboard` page with metrics table, per-user drilldown, and downgrade controls |
+| 🟠 Med | **Community feed UI** | `/community` page with trending video grid, like button, and remix modal |
+| 🟠 Med | **Export button** | Download / share buttons on `VideoCard` and the generation detail view |
 | 🟠 Med | **Email notifications** | Resend / SendGrid for signup confirmation and video-ready alerts |
 | 🟠 Med | **Push notifications** | `expo-notifications` on mobile; server-side trigger on video completion |
-| 🟠 Med | **Video download (web)** | Download button alongside inline player |
 | 🟡 Low | **Privacy / Terms pages** | Replace `#` links in footer with real content |
 
 ### 🟢 Mid-term
@@ -844,7 +868,9 @@ These are applied silently — users are never told about them:
 | **CI/CD pipeline** | GitHub Actions for lint + typecheck + build on PRs |
 | **Error monitoring** | Sentry integration for both web and worker |
 | **Analytics** | PostHog or Mixpanel for usage funnels |
-| **Admin dashboard** | Internal UI for user management, revenue, content moderation |
+| **Social OAuth for export** | YouTube Data API v3, Instagram Graph API, TikTok API — OAuth credential setup + background upload worker |
+| **Watermark removal flow** | Clearly surface watermark on Free plan videos; upsell to Starter to remove |
+| **LLM-powered script generator** | Replace keyword-based intent detection with GPT-4o-mini or Gemini for richer scene scripts |
 
 ### 🔵 Long-term / Nice-to-Have
 
@@ -854,8 +880,9 @@ These are applied silently — users are never told about them:
 | **Multi-shot / storyboard** | Sequence multiple prompts into a single video narrative |
 | **Native audio generation** | Auto-generate sound effects + ambience |
 | **Collaboration** | Teams, shared galleries, project workspaces |
-| **API access (Studio)** | Public REST/tRPC API for Studio tier (already gated in billing) |
+| **API access (Pro)** | Public REST/tRPC API for Pro tier (already gated in billing) |
 | **Replicate fallback** | Automatic failover from Fal.ai → Replicate on errors |
+| **Community monetisation** | Revenue share for viral community videos |
 
 ---
 

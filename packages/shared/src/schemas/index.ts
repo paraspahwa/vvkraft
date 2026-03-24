@@ -161,3 +161,70 @@ export const videoUpscaleRequestSchema = z.object({
 });
 
 export type VideoUpscaleRequestInput = z.infer<typeof videoUpscaleRequestSchema>;
+
+// ── Template schemas ──────────────────────────────────────────────────────────
+
+export const templateCategorySchema = z.enum([
+  "motivational",
+  "crypto",
+  "anime",
+  "gym",
+  "news",
+  "product",
+  "travel",
+  "food",
+  "education",
+] as const);
+
+/** Input for generating a video from a 1-click template */
+export const templateGenerateSchema = z.object({
+  templateId: z.string().min(1),
+  /** Optional prompt override — appended to the template's base prompt */
+  promptOverride: z.string().max(500).optional(),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1"]).optional(),
+});
+
+export type TemplateGenerateInput = z.infer<typeof templateGenerateSchema>;
+
+// ── Auto-Script Generator schemas ─────────────────────────────────────────────
+
+/** Input for the Auto-Script Generator */
+export const autoScriptRequestSchema = z.object({
+  /** Plain-English intent, e.g. "make gym video" */
+  userIntent: z.string().min(3, "Describe what you want in at least 3 characters").max(300),
+  /** Number of scenes to generate (default 3 for a ~30s video) */
+  numScenes: z.number().int().min(1).max(10).default(3),
+  /** Preferred aspect ratio */
+  aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("9:16"),
+  /** Total target duration in seconds */
+  targetDurationSeconds: z.number().int().min(5).max(120).default(30),
+});
+
+export type AutoScriptRequestInput = z.infer<typeof autoScriptRequestSchema>;
+
+// ── Export schemas ────────────────────────────────────────────────────────────
+
+export const exportTargetSchema = z.enum([
+  "youtube_shorts",
+  "instagram_reels",
+  "tiktok",
+  "local",
+] as const);
+
+export const exportRequestSchema = z.object({
+  generationId: z.string().min(1),
+  target: exportTargetSchema,
+});
+
+export type ExportRequestInput = z.infer<typeof exportRequestSchema>;
+
+// ── Community schemas ─────────────────────────────────────────────────────────
+
+export const communityRemixSchema = z.object({
+  sourceGenerationId: z.string().min(1),
+  prompt: z.string().min(3).max(2000),
+  durationSeconds: z.number().int().min(1).max(30),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("9:16"),
+});
+
+export type CommunityRemixInput = z.infer<typeof communityRemixSchema>;
