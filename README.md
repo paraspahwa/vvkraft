@@ -37,6 +37,15 @@
   - [Prerequisites](#prerequisites)
   - [Environment Variables](#environment-variables)
   - [Install & Run](#install--run)
+    - [Step 1 — Install required software](#step-1--install-required-software)
+    - [Step 2 — Clone the repository](#step-2--clone-the-repository)
+    - [Step 3 — Install dependencies](#step-3--install-dependencies)
+    - [Step 4 — Set up environment variables](#step-4--set-up-environment-variables)
+    - [Step 5 — Start Redis](#step-5--start-redis-skip-if-using-cloud-redis)
+    - [Step 6 — Start the web app](#step-6--start-the-web-app-terminal-1)
+    - [Step 7 — Start the background worker](#step-7--start-the-background-worker-terminal-2)
+    - [Step 8 — Start the mobile app (optional)](#step-8--optional-start-the-mobile-app-terminal-3)
+    - [Docker Compose (alternative)](#docker-compose-alternative-to-steps-57)
 - [Deployment](#deployment)
 - [Architecture](#architecture)
   - [Hidden Layers (Competitive Moat)](#hidden-layers-competitive-moat)
@@ -357,31 +366,225 @@ EXPO_PUBLIC_API_URL=https://your-app.vercel.app
 
 ### Install & Run
 
+Follow these steps in order. Every command is run from the **repository root** unless otherwise noted.
+
+---
+
+#### Step 1 — Install required software
+
+| Tool | Minimum version | Install |
+|------|----------------|---------|
+| **Node.js** | 20 LTS | [nodejs.org](https://nodejs.org/) or `nvm install 20` |
+| **npm** | 10 | Bundled with Node 20 |
+| **Git** | 2.x | [git-scm.com](https://git-scm.com/) |
+| **Redis** | 7 | See platform notes below |
+
+**macOS**
+
 ```bash
-# 1. Install all dependencies
-npm install
-
-# 2. Start all apps in parallel (web + mobile)
-npm run dev
-
-# Or start individually:
-cd apps/web && npm run dev       # http://localhost:3000
-cd apps/mobile && npm run dev    # Expo dev server
-
-# Start the BullMQ video-generation worker (separate terminal)
-cd apps/web && npm run worker
-
-# Build for production
-npm run build
-
-# Lint all packages
-npm run lint
-
-# Type-check all packages
-npm run typecheck
+brew install node@20 redis
+brew services start redis
+redis-cli ping   # → PONG
 ```
 
-> **Tip:** You need Redis running locally (`redis-server`) before starting the worker or the web app in development.
+**Ubuntu / Debian**
+
+```bash
+# Node 20 via nvm — see https://github.com/nvm-sh/nvm#install--update-script for the latest installer
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 20 && nvm use 20
+
+# Redis 7
+sudo apt-get install -y redis
+sudo systemctl start redis-server
+redis-cli ping   # → PONG
+```
+
+**Windows (WSL2 recommended)**
+
+```powershell
+# Install WSL2 (PowerShell as Administrator), then reboot
+wsl --install
+```
+
+```bash
+# Inside WSL2 terminal
+sudo apt-get update
+sudo apt-get install -y redis-server
+sudo service redis-server start
+redis-cli ping   # → PONG
+```
+
+> **Cloud Redis alternative:** If you prefer not to install Redis locally, create a free [Upstash](https://upstash.com/) database and set `REDIS_URL` to the provided connection string.
+
+For detailed per-platform installation instructions see [Prerequisites.md](./Prerequisites.md).
+
+---
+
+#### Step 2 — Clone the repository
+
+```bash
+git clone https://github.com/paraspahwa/vvkraft.git
+cd vvkraft
+```
+
+---
+
+#### Step 3 — Install dependencies
+
+```bash
+npm install --legacy-peer-deps
+```
+
+> **Why `--legacy-peer-deps`?** Expo 52 / React Native 0.76 packages have peer-dependency constraints that conflict with npm 10's strict resolver. The flag is safe and does not affect the web app.
+
+---
+
+#### Step 4 — Set up environment variables
+
+**Web app:**
+
+```bash
+cp .env.example apps/web/.env.local
+```
+
+Open `apps/web/.env.local` and fill in every value. The required keys are listed in the [Environment Variables](#environment-variables) section above.
+
+**Mobile app (optional — skip this if you are not developing for mobile):**
+
+If `apps/mobile/.env.example` exists in the repo, copy it; otherwise create `apps/mobile/.env.local` manually:
+
+```bash
+# Copy example if it exists
+[ -f apps/mobile/.env.example ] && cp apps/mobile/.env.example apps/mobile/.env.local
+```
+
+Populate `apps/mobile/.env.local` with:
+
+```env
+EXPO_PUBLIC_FIREBASE_API_KEY=
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_API_URL=http://localhost:3000
+```
+
+---
+
+#### Step 5 — Start Redis (skip if using cloud Redis)
+
+```bash
+# macOS
+brew services start redis
+
+# Linux
+sudo systemctl start redis-server
+
+# Verify
+redis-cli ping   # → PONG
+```
+
+---
+
+#### Step 6 — Start the web app (Terminal 1)
+
+```bash
+# From the repo root — Turborepo starts all workspaces in parallel
+npm run dev
+```
+
+Or start only the web app:
+
+```bash
+cd apps/web
+npm run dev
+```
+
+The web app is now available at **http://localhost:3000**.
+
+| Page | URL |
+|------|-----|
+| Landing | http://localhost:3000/ |
+| Dashboard | http://localhost:3000/dashboard |
+| Generate video | http://localhost:3000/generate |
+| Long-form video | http://localhost:3000/generate/long-video |
+| Gallery | http://localhost:3000/gallery |
+| Characters | http://localhost:3000/characters |
+| Pricing | http://localhost:3000/pricing |
+
+---
+
+#### Step 7 — Start the background worker (Terminal 2)
+
+The BullMQ worker processes video-generation jobs. It must run alongside the web app.
+
+```bash
+cd apps/web
+npm run worker
+```
+
+> **Note:** Redis must be running before you start the worker. If Redis is unavailable the worker will exit immediately with a connection error.
+
+---
+
+#### Step 8 — (Optional) Start the mobile app (Terminal 3)
+
+```bash
+cd apps/mobile
+npm run dev          # Prints an Expo Go QR code in the terminal
+```
+
+Scan the QR code with the **Expo Go** app ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)) to load the app on your device.
+
+Run on a specific platform:
+
+```bash
+npm run android      # Requires Android Studio + emulator or device
+npm run ios          # Requires Xcode + simulator (macOS only)
+```
+
+---
+
+#### Docker Compose (alternative to Steps 5–7)
+
+If you have Docker installed you can spin up Redis, the FastAPI GPU-worker backend, and the Celery workers with a single command:
+
+```bash
+# Copy and fill in your credentials first
+cp .env.example .env
+
+docker compose up --build
+```
+
+Services started:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `redis` | 6379 | Message broker for BullMQ / Celery |
+| `api` | 8000 | FastAPI GPU-worker backend |
+| `celery-gpu` | — | Celery worker for GPU-heavy tasks |
+| `celery-default` | — | Celery worker for default tasks |
+
+> The Next.js web app (`apps/web`) is **not** included in Docker Compose and should still be started with `npm run dev` (Step 6).
+
+---
+
+#### Additional commands
+
+```bash
+# Build all workspaces for production
+npm run build
+
+# Build only the web app
+npm run build --workspace=apps/web
+
+# Lint all packages (ESLint)
+npm run lint
+
+# Type-check all packages (tsc --noEmit)
+npm run typecheck
+```
 
 ---
 
