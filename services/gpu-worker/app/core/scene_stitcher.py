@@ -16,6 +16,7 @@ from app.models.schemas import (
     GPUTier,
     Scene,
     SceneResult,
+    VideoModel,
     VideoResolution,
 )
 
@@ -103,8 +104,13 @@ def build_scene_render_payload(
     aspect_ratio: AspectRatio,
     seed: Optional[int] = None,
     motion_strength: Optional[float] = None,
+    model: Optional[VideoModel] = None,
 ) -> dict:
-    """Build the RunPod input payload for rendering a single scene."""
+    """Build the RunPod input payload for rendering a single scene.
+
+    The ``model`` field is included in the payload so that the RunPod worker
+    can select the correct model weights at inference time.
+    """
     payload: dict = {
         "prompt": scene.prompt,
         "num_frames": int(scene.duration_seconds * 24),
@@ -112,6 +118,9 @@ def build_scene_render_payload(
         "width": _resolution_width(resolution, aspect_ratio),
         "height": _resolution_height(resolution, aspect_ratio),
     }
+
+    if model is not None:
+        payload["model"] = model.value
 
     if scene.negative_prompt:
         payload["negative_prompt"] = scene.negative_prompt

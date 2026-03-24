@@ -36,6 +36,7 @@ from app.models.schemas import (
     SceneResult,
     SubscriptionTier,
     UserMetrics,
+    VideoModel,
     VideoResolution,
 )
 from app.storage.r2_client import (
@@ -83,6 +84,7 @@ def generate_video(self, request_data: dict[str, Any]) -> dict[str, Any]:
             aspect_ratio=request.aspect_ratio,
             seed=request.seed,
             motion_strength=request.motion_strength,
+            model=routing.main_model,
         )
         render_tasks.append(
             render_scene.s(
@@ -90,6 +92,7 @@ def generate_video(self, request_data: dict[str, Any]) -> dict[str, Any]:
                 user_id=request.user_id,
                 scene_index=scene.scene_index,
                 gpu_tier=routing.gpu_tier.value,
+                model=routing.main_model.value,
                 payload=payload,
                 duration_seconds=scene.duration_seconds,
             )
@@ -134,6 +137,7 @@ def render_scene(
     user_id: str,
     scene_index: int,
     gpu_tier: str,
+    model: str,
     payload: dict[str, Any],
     duration_seconds: float,
 ) -> dict[str, Any]:
@@ -143,6 +147,7 @@ def render_scene(
     failed scene is re-rendered, not the whole video).
     """
     tier = GPUTier(gpu_tier)
+    video_model = VideoModel(model)
     webhook_url = (
         f"{settings.WEBHOOK_BASE_URL}/api/webhooks/runpod"
         f"?generationId={generation_id}&sceneIndex={scene_index}"
@@ -150,7 +155,7 @@ def render_scene(
 
     try:
         result = asyncio.get_event_loop().run_until_complete(
-            submit_job(tier, payload, webhook_url=webhook_url)
+            submit_job(tier, payload, webhook_url=webhook_url, model=video_model)
         )
     except Exception as exc:
         logger.error(
@@ -161,7 +166,7 @@ def render_scene(
         )
         raise self.retry(exc=exc)
 
-    cost = estimate_gpu_cost(tier, duration_seconds)
+    cost = estimate_gpu_cost(tier, duration_seconds, model=video_model)
 
     return {
         "scene_index": scene_index,
@@ -169,6 +174,7 @@ def render_scene(
         "runpod_job_id": result.get("id"),
         "cost_usd": cost,
         "duration_seconds": duration_seconds,
+        "model": video_model.value,
     }
 
 
@@ -266,12 +272,16 @@ def generate_draft_preview(
     prompt: str,
     duration_seconds: float = 5.0,
 ) -> dict[str, Any]:
-    """Generate a low-cost draft preview using the LTX model on a 4090.
+    """Generate a low-cost draft preview using the LTX model on a 3060.
 
     Draft mode is mandatory before full render to prevent wasted GPU spend.
-    Uses 480p resolution and a fast, cheap model.
+    LTX is the dedicated preview model across all subscription tiers: it is
+    fast, cheap, and produces a good enough result for user approval.
+    Uses 480p resolution.
     """
+    preview_model = VideoModel.LTX
     payload = {
+        "model": preview_model.value,
         "prompt": prompt,
         "num_frames": int(duration_seconds * 24),
         "fps": 24,
@@ -286,17 +296,23 @@ def generate_draft_preview(
 
     try:
         result = asyncio.get_event_loop().run_until_complete(
-            submit_job(GPUTier.RTX_4090, payload, webhook_url=webhook_url)
+            submit_job(
+                GPUTier.RTX_3060,
+                payload,
+                webhook_url=webhook_url,
+                model=preview_model,
+            )
         )
     except Exception as exc:
         logger.error("Draft preview failed for %s: %s", generation_id, exc)
         raise self.retry(exc=exc)
 
-    cost = estimate_gpu_cost(GPUTier.RTX_4090, duration_seconds)
+    cost = estimate_gpu_cost(GPUTier.RTX_3060, duration_seconds, model=preview_model)
 
     return {
         "generation_id": generation_id,
         "status": GenerationStatus.DRAFT_PREVIEW.value,
         "runpod_job_id": result.get("id"),
         "cost_usd": cost,
+        "model": preview_model.value,
     }
