@@ -30,7 +30,16 @@ export function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
-  if (!firebaseUser) return null;
+  if (!firebaseUser) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-primary">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-400 border-t-transparent" />
+          <p className="text-sm text-gray-400">Redirecting to login…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-primary">

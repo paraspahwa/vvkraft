@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/client";
 import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { auth } from "@/lib/firebase";
 
 function getBaseUrl() {
@@ -34,10 +35,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           url: `${getBaseUrl()}/api/trpc`,
           transformer: superjson,
           async headers() {
-            const currentUser = auth.currentUser;
-            if (!currentUser) return {};
-            const token = await currentUser.getIdToken();
-            return { Authorization: `Bearer ${token}` };
+            try {
+              const currentUser = auth.currentUser;
+              if (!currentUser) return {};
+              const token = await currentUser.getIdToken();
+              return { Authorization: `Bearer ${token}` };
+            } catch {
+              return {};
+            }
           },
         }),
       ],
@@ -47,7 +52,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>{children}</AuthProvider>
+        </ErrorBoundary>
       </QueryClientProvider>
     </trpc.Provider>
   );
