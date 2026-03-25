@@ -31,11 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setFirebaseUser(user);
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = onAuthStateChanged(auth, (user) => {
+        setFirebaseUser(user);
+        setLoading(false);
+      });
+    } catch (err) {
+      // Firebase is not configured — stop loading so routes can redirect properly
+      console.warn(
+        "[AuthProvider] Firebase auth is not initialized. Authentication will not work.",
+        err instanceof Error ? err.message : err
+      );
       setLoading(false);
-    });
-    return unsubscribe;
+    }
+    return () => unsubscribe?.();
   }, []);
 
   const signIn = async (email: string, password: string) => {

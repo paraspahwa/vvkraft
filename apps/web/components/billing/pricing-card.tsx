@@ -12,9 +12,10 @@ interface PricingCardProps {
   plan: PricingPlan;
   billingPeriod: "monthly" | "yearly";
   currentTier?: string;
+  isAuthenticated?: boolean;
 }
 
-export function PricingCard({ plan, billingPeriod, currentTier }: PricingCardProps) {
+export function PricingCard({ plan, billingPeriod, currentTier, isAuthenticated }: PricingCardProps) {
   const isCurrent = currentTier === plan.tier;
   const price = billingPeriod === "yearly" ? plan.yearlyPriceUsd : plan.monthlyPriceUsd;
   const router = useRouter();
@@ -25,7 +26,15 @@ export function PricingCard({ plan, billingPeriod, currentTier }: PricingCardPro
   });
 
   const handleUpgrade = async () => {
-    if (plan.tier === "free") return;
+    if (plan.tier === "free") {
+      router.push("/auth/register");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
 
     const loaded = await loadRazorpayScript();
     if (!loaded) {
@@ -123,13 +132,13 @@ export function PricingCard({ plan, billingPeriod, currentTier }: PricingCardPro
           variant={plan.highlighted ? "gradient" : isCurrent ? "outline" : "outline"}
           size="lg"
           className="w-full"
-          disabled={isCurrent || plan.tier === "free"}
+          disabled={isCurrent}
           loading={isPending}
         >
           {isCurrent ? "Current Plan" : plan.tier === "free" ? "Get Started Free" : (
             <span className="flex items-center gap-1.5">
               <Zap className="h-4 w-4" />
-              Upgrade to {plan.name}
+              {isAuthenticated ? `Upgrade to ${plan.name}` : `Get ${plan.name}`}
             </span>
           )}
         </Button>

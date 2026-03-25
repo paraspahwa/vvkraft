@@ -18,6 +18,7 @@ export interface VideoGenerationJobData {
   seed?: number;
   motionStrength?: number;
   referenceImageUrl?: string;
+  characterId?: string;
 }
 
 export interface WebhookJobData {

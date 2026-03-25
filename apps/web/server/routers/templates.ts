@@ -62,7 +62,7 @@ export const templatesRouter = router({
         pro: 2,
         studio: 3,
       };
-      if (tierOrder[user.tier] < tierOrder[template.minTier]) {
+      if ((tierOrder[user.tier] ?? 0) < (tierOrder[template.minTier] ?? 0)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `This template requires the ${template.minTier} plan or above.`,

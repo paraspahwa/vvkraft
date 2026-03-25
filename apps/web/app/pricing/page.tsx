@@ -115,6 +115,7 @@ export default function PricingPage() {
               plan={plan}
               billingPeriod={billingPeriod}
               currentTier={user?.tier}
+              isAuthenticated={!!firebaseUser}
             />
           ))}
         </div>
