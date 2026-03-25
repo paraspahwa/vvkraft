@@ -13,5 +13,11 @@
   },
   "devDependencies": {
     "typescript": "^5.3.0"
+  },
+  "overrides": {
+    "teeny-request": "10.1.2",
+    "@tootallnate/once": "3.0.1",
+    "http-proxy-agent": "7.0.2",
+    "retry-request": "8.0.2"
   }
 }
