@@ -14,6 +14,7 @@ import {
   User2,
   Clock,
   ArrowUpCircle,
+  Clapperboard,
 } from "lucide-react";
 import { cn } from "@videoforge/ui";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/generate", label: "Generate", icon: Wand2, exact: true },
   { href: "/generate/long-video", label: "Long Video", icon: Clock, paidOnly: true },
+  { href: "/editor", label: "Video Editor", icon: Clapperboard, paidOnly: true },
   { href: "/upscale", label: "Upscale 4K", icon: ArrowUpCircle },
   { href: "/gallery", label: "Gallery", icon: Image },
   { href: "/characters", label: "Characters", icon: User2 },

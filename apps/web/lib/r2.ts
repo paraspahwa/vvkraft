@@ -127,3 +127,17 @@ export function buildUpscaleInputKey(userId: string, jobId: string): string {
 export function buildUpscaleOutputKey(userId: string, jobId: string): string {
   return `upscale/${userId}/${jobId}/output-4k.mp4`;
 }
+
+/**
+ * Build R2 storage key for a user-uploaded video in the editor
+ */
+export function buildEditorInputKey(userId: string, projectId: string, clipId: string): string {
+  return `editor/${userId}/${projectId}/${clipId}/input.mp4`;
+}
+
+/**
+ * Build R2 storage key for a rendered/exported editor project
+ */
+export function buildEditorOutputKey(userId: string, projectId: string): string {
+  return `editor/${userId}/${projectId}/export.mp4`;
+}
