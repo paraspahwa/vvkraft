@@ -1,7 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "@/server/routers/_app";
-import { adminAuth } from "@/lib/firebase-admin";
-import { getUserById } from "@/lib/db";
+import { getOrCreateUserFromToken } from "@/lib/auth-context";
 import type { NextRequest } from "next/server";
 
 const handler = (req: NextRequest) =>
@@ -10,19 +9,7 @@ const handler = (req: NextRequest) =>
     req,
     router: appRouter,
     createContext: async () => {
-      const authHeader = req.headers.get("authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return { user: null, userId: null };
-      }
-
-      const token = authHeader.slice(7);
-      try {
-        const decoded = await adminAuth.verifyIdToken(token);
-        const user = await getUserById(decoded.uid);
-        return { user, userId: decoded.uid };
-      } catch {
-        return { user: null, userId: null };
-      }
+      return getOrCreateUserFromToken(req.headers.get("authorization"));
     },
     onError({ error, path }) {
       if (error.code === "INTERNAL_SERVER_ERROR") {
