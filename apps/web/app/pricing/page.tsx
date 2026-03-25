@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Zap } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Film, Zap } from "lucide-react";
 import { PricingCard } from "@/components/billing/pricing-card";
 import { PRICING_PLANS } from "@/lib/pricing";
 import { trpc } from "@/lib/trpc/client";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Header } from "@/components/layout/header";
 import { loadRazorpayScript } from "@/lib/razorpay-client";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const CREDIT_PACKS = [
   { credits: 50, price: 5 },
@@ -18,15 +21,27 @@ const CREDIT_PACKS = [
 
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
-  const { data: user } = trpc.user.me.useQuery();
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const { firebaseUser } = useAuth();
+  const router = useRouter();
+  const { data: user } = trpc.user.me.useQuery(undefined, {
+    enabled: !!firebaseUser,
+    retry: false,
+  });
 
   const creditCheckoutMutation = trpc.billing.createCreditCheckout.useMutation();
   const verifyCreditMutation = trpc.billing.verifyCreditPayment.useMutation();
 
   const handleBuyCreditPack = async (credits: number) => {
+    setBuyError(null);
+    if (!firebaseUser) {
+      router.push("/auth/login");
+      return;
+    }
+
     const loaded = await loadRazorpayScript();
     if (!loaded) {
-      console.error("Failed to load Razorpay checkout");
+      setBuyError("Failed to load payment provider. Please try again.");
       return;
     }
 
@@ -61,11 +76,8 @@ export default function PricingPage() {
     rzp.open();
   };
 
-  return (
-    <AppLayout>
-      <Header title="Pricing" description="Choose the plan that works for you" />
-
-      <div className="p-8 space-y-12">
+  const pricingContent = (
+    <div className="p-8 space-y-12">
         {/* Billing period toggle */}
         <div className="flex justify-center">
           <div className="flex items-center gap-1 rounded-xl border border-surface-border bg-surface-card p-1">
@@ -115,6 +127,9 @@ export default function PricingPage() {
               Need more credits? Purchase additional credits any time. 1 credit = $0.10
             </p>
           </div>
+          {buyError && (
+            <p className="text-center text-sm text-red-400">{buyError}</p>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {CREDIT_PACKS.map((pack) => (
@@ -172,6 +187,51 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+  );
+
+  if (firebaseUser) {
+    return (
+      <AppLayout>
+        <Header title="Pricing" description="Choose the plan that works for you" />
+        {pricingContent}
+      </AppLayout>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-primary">
+      {/* Public top navigation */}
+      <header className="sticky top-0 z-50 border-b border-surface-border bg-primary/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-gradient">
+              <Film className="h-4 w-4 text-white" />
+            </div>
+            <span className="text-lg font-bold gradient-text">VideoForge</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/auth/login"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+            >
+              Login
+            </Link>
+            <Link
+              href="/auth/register"
+              className="rounded-lg bg-accent-400 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500 transition-colors"
+            >
+              Start for Free →
+            </Link>
+          </div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-7xl">
+        <div className="px-6 pt-10 pb-2 text-center">
+          <h1 className="text-3xl font-bold text-white">Pricing</h1>
+          <p className="mt-2 text-gray-400">Choose the plan that works for you</p>
+        </div>
+        {pricingContent}
+      </div>
+    </div>
   );
 }

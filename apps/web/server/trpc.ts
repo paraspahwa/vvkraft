@@ -2,8 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { adminAuth } from "../lib/firebase-admin";
-import { getUserById } from "../lib/db";
+import { getOrCreateUserFromToken } from "../lib/auth-context";
 import type { User } from "@videoforge/shared";
 
 // Context type available in all procedures
@@ -14,19 +13,7 @@ export interface Context {
 
 // Create context from request headers (Firebase ID token in Authorization header)
 export async function createContext(opts: CreateNextContextOptions): Promise<Context> {
-  const authHeader = opts.req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { user: null, userId: null };
-  }
-
-  const token = authHeader.slice(7);
-  try {
-    const decoded = await adminAuth.verifyIdToken(token);
-    const user = await getUserById(decoded.uid);
-    return { user, userId: decoded.uid };
-  } catch {
-    return { user: null, userId: null };
-  }
+  return getOrCreateUserFromToken(opts.req.headers.authorization as string | undefined);
 }
 
 const t = initTRPC.context<Context>().create({
