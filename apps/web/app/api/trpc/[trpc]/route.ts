@@ -1,6 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "@/server/routers/_app";
-import { getOrCreateUserFromToken } from "@/lib/auth-context";
+import { getOrCreateUserFromSession } from "@/lib/auth-context";
 import type { NextRequest } from "next/server";
 
 const handler = (req: NextRequest) =>
@@ -9,7 +9,7 @@ const handler = (req: NextRequest) =>
     req,
     router: appRouter,
     createContext: async () => {
-      return getOrCreateUserFromToken(req.headers.get("authorization"));
+      return getOrCreateUserFromSession(req.headers);
     },
     onError({ error, path }) {
       if (error.code === "INTERNAL_SERVER_ERROR") {

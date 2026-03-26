@@ -1,13 +1,12 @@
 "use client";
 
 import { useAuth } from "@/components/auth/auth-provider";
-import { trpc } from "@/lib/trpc/client";
 
 /**
- * Returns tRPC utils with auth headers injected automatically
- * Use this hook in components that need authenticated tRPC calls
+ * Returns auth context for components that need authenticated state.
+ * Better Auth manages sessions via cookies automatically.
  */
 export function useTrpcAuth() {
-  const { getIdToken } = useAuth();
-  return { getIdToken };
+  const { user } = useAuth();
+  return { user };
 }

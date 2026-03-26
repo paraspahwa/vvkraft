@@ -2,7 +2,11 @@
   "name": "videoforge",
   "private": true,
   "packageManager": "npm@11.9.0",
-  "workspaces": ["apps/*", "packages/*", "packages/config/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/config/*"
+  ],
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
@@ -13,12 +17,7 @@
     "turbo": "^2.0.0"
   },
   "devDependencies": {
+    "@types/pg": "^8.20.0",
     "typescript": "^5.3.0"
-  },
-  "overrides": {
-    "teeny-request": "10.1.2",
-    "@tootallnate/once": "3.0.1",
-    "http-proxy-agent": "7.0.2",
-    "retry-request": "8.0.2"
   }
 }

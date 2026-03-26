@@ -16,7 +16,7 @@
 
 import { z } from "zod";
 import { router, adminProcedure } from "../trpc";
-import { adminDb } from "../../lib/firebase-admin";
+import { supabase } from "../../lib/supabase";
 import type { AdminUserMetrics, PlatformMetrics, SubscriptionTier } from "@videoforge/shared";
 
 // ── INR → USD conversion (fixed for margin calculations) ─────────────────────
@@ -37,22 +37,20 @@ function inrToUsd(inr: number): number {
 }
 
 async function buildUserMetrics(userId: string): Promise<AdminUserMetrics> {
-  const [userDoc, generationsSnap] = await Promise.all([
-    adminDb.collection("users").doc(userId).get(),
-    adminDb
-      .collection("generations")
-      .where("userId", "==", userId)
-      .where(
-        "createdAt",
-        ">=",
-        new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      )
-      .get(),
+  const [userResult, generationsResult] = await Promise.all([
+    supabase.from("users").select("*").eq("id", userId).single(),
+    supabase
+      .from("generations")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
   ]);
 
-  const userData = userDoc.data() ?? {};
+  const userData = userResult.data ?? {};
   const tier = (userData["tier"] ?? "free") as SubscriptionTier;
   const email = (userData["email"] ?? "") as string;
+
+  const generations = generationsResult.data ?? [];
 
   let videosGenerated = 0;
   let totalGpuSeconds = 0;
@@ -60,17 +58,13 @@ async function buildUserMetrics(userId: string): Promise<AdminUserMetrics> {
   let totalScenes = 0;
   let totalActualCostUsd = 0;
 
-  for (const doc of generationsSnap.docs) {
-    const data = doc.data();
+  for (const data of generations) {
     if (data["status"] === "completed") {
       videosGenerated += 1;
     }
-    // Accumulate actual GPU cost if tracked
-    totalActualCostUsd += (data["actualCostUsd"] as number) ?? 0;
-    // Estimate GPU seconds from duration (with 3× render overhead)
-    const dur = (data["durationSeconds"] as number) ?? 0;
+    totalActualCostUsd += (data["actual_cost_usd"] as number) ?? 0;
+    const dur = (data["duration_seconds"] as number) ?? 0;
     totalGpuSeconds += dur * 3;
-    // Retry rate proxy: failed generations / total
     if (data["status"] === "failed") failedScenes += 1;
     totalScenes += 1;
   }
@@ -112,8 +106,8 @@ export const adminRouter = router({
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const usersSnap = await adminDb.collection("users").get();
-    const userIds = usersSnap.docs.map((d) => d.id);
+    const usersResult = await supabase.from("users").select("id");
+    const userIds = (usersResult.data ?? []).map((d) => d["id"] as string);
 
     // Build metrics in parallel (cap batch at 50 for Firestore read limits)
     const batchSize = 50;
@@ -177,12 +171,12 @@ export const adminRouter = router({
       })
     )
     .query(async ({ input }): Promise<AdminUserMetrics[]> => {
-      const usersSnap = await adminDb
-        .collection("users")
-        .limit(200) // practical cap; paginate further if needed
-        .get();
+      const usersResult = await supabase
+        .from("users")
+        .select("id")
+        .limit(200);
 
-      const userIds = usersSnap.docs.map((d) => d.id);
+      const userIds = (usersResult.data ?? []).map((d) => d["id"] as string);
       const allMetrics = await Promise.all(userIds.map(buildUserMetrics));
 
       let result = input.onlyDowngraded
@@ -217,11 +211,11 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      await adminDb.collection("users").doc(input.userId).update({
-        adminDowngraded: input.downgraded,
-        adminDowngradeReason: input.reason ?? null,
-        adminDowngradedAt: new Date(),
-      });
+      await supabase.from("users").update({
+        admin_downgraded: input.downgraded,
+        admin_downgrade_reason: input.reason ?? null,
+        admin_downgraded_at: new Date().toISOString(),
+      }).eq("id", input.userId);
       return { success: true };
     }),
 });

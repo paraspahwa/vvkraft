@@ -1,27 +1,28 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+// Backblaze B2 S3-compatible storage client
+const b2Client = new S3Client({
+  region: process.env.B2_REGION ?? "us-west-004",
+  endpoint: `https://s3.${process.env.B2_REGION ?? "us-west-004"}.backblazeb2.com`,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
+    accessKeyId: process.env.B2_APPLICATION_KEY_ID ?? "",
+    secretAccessKey: process.env.B2_APPLICATION_KEY ?? "",
   },
 });
 
-const BUCKET_NAME = process.env.R2_BUCKET_NAME ?? "videoforge";
-const PUBLIC_URL = process.env.R2_PUBLIC_URL ?? "";
+const BUCKET_NAME = process.env.B2_BUCKET_NAME ?? "videoforge";
+const PUBLIC_URL = process.env.B2_PUBLIC_URL ?? "";
 
 /**
- * Upload a buffer to R2 and return the public URL
+ * Upload a buffer to Backblaze B2 and return the public URL
  */
 export async function uploadToR2(
   key: string,
   buffer: Buffer,
   contentType: string
 ): Promise<string> {
-  await r2Client.send(
+  await b2Client.send(
     new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -33,7 +34,7 @@ export async function uploadToR2(
 }
 
 /**
- * Upload from a URL (download then re-upload to R2)
+ * Upload from a URL (download then re-upload to B2)
  */
 export async function uploadFromUrl(key: string, sourceUrl: string, contentType: string): Promise<string> {
   const response = await fetch(sourceUrl);
@@ -43,10 +44,10 @@ export async function uploadFromUrl(key: string, sourceUrl: string, contentType:
 }
 
 /**
- * Delete an object from R2
+ * Delete an object from B2
  */
 export async function deleteFromR2(key: string): Promise<void> {
-  await r2Client.send(
+  await b2Client.send(
     new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -63,7 +64,7 @@ export async function getPresignedUploadUrl(
   expiresIn = 3600
 ): Promise<string> {
   return getSignedUrl(
-    r2Client,
+    b2Client,
     new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -74,7 +75,7 @@ export async function getPresignedUploadUrl(
 }
 
 /**
- * Generate a pre-signed URL for downloading / reading an object from R2.
+ * Generate a pre-signed URL for downloading / reading an object from B2.
  * Used for secure local export (the URL expires after `expiresIn` seconds).
  */
 export async function getPresignedDownloadUrl(
@@ -83,7 +84,7 @@ export async function getPresignedDownloadUrl(
   expiresIn = 3600
 ): Promise<string> {
   return getSignedUrl(
-    r2Client,
+    b2Client,
     new GetObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -94,49 +95,49 @@ export async function getPresignedDownloadUrl(
 }
 
 /**
- * Build R2 storage key for a user's video
+ * Build storage key for a user's video
  */
 export function buildVideoKey(userId: string, generationId: string): string {
   return `videos/${userId}/${generationId}/output.mp4`;
 }
 
 /**
- * Build R2 storage key for a video thumbnail
+ * Build storage key for a video thumbnail
  */
 export function buildThumbnailKey(userId: string, generationId: string): string {
   return `videos/${userId}/${generationId}/thumbnail.jpg`;
 }
 
 /**
- * Build R2 storage key for a character reference image
+ * Build storage key for a character reference image
  */
 export function buildCharacterKey(userId: string, characterId: string): string {
   return `characters/${userId}/${characterId}/reference.jpg`;
 }
 
 /**
- * Build R2 storage key for an upscale input video
+ * Build storage key for an upscale input video
  */
 export function buildUpscaleInputKey(userId: string, jobId: string): string {
   return `upscale/${userId}/${jobId}/input.mp4`;
 }
 
 /**
- * Build R2 storage key for an upscale output (4K) video
+ * Build storage key for an upscale output (4K) video
  */
 export function buildUpscaleOutputKey(userId: string, jobId: string): string {
   return `upscale/${userId}/${jobId}/output-4k.mp4`;
 }
 
 /**
- * Build R2 storage key for a user-uploaded video in the editor
+ * Build storage key for a user-uploaded video in the editor
  */
 export function buildEditorInputKey(userId: string, projectId: string, clipId: string): string {
   return `editor/${userId}/${projectId}/${clipId}/input.mp4`;
 }
 
 /**
- * Build R2 storage key for a rendered/exported editor project
+ * Build storage key for a rendered/exported editor project
  */
 export function buildEditorOutputKey(userId: string, projectId: string): string {
   return `editor/${userId}/${projectId}/export.mp4`;

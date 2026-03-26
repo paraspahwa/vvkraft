@@ -1,20 +1,8 @@
-/**
- * Community Content Loop router.
- *
- * Surfaces trending videos from the platform and supports the remix feature
- * (generate a new video seeded from an existing community post).
- *
- * Community videos are stored in the `communityVideos` Firestore collection.
- * A generation becomes eligible for the community feed when the user opts in
- * (Generation.isPublic = true — currently defaulting false to protect privacy).
- */
-
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure, publicProcedure } from "../trpc";
 import { communityRemixSchema } from "@videoforge/shared";
-import { adminDb } from "../../lib/firebase-admin";
-import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { supabase } from "../../lib/supabase";
 import { createGeneration, deductCredits } from "../../lib/db";
 import { routeModel } from "../../lib/model-router";
 import { enqueueVideoGeneration } from "../../lib/queue";
@@ -22,7 +10,6 @@ import { enqueueVideoGeneration } from "../../lib/queue";
 export const communityRouter = router({
   /**
    * List trending community videos, ordered by likes descending.
-   * Public endpoint — no auth required to browse.
    */
   trending: publicProcedure
     .input(
@@ -32,41 +19,42 @@ export const communityRouter = router({
       })
     )
     .query(async ({ input }) => {
-      let query = adminDb
-        .collection("communityVideos")
-        .orderBy("likes", "desc")
+      let query = supabase
+        .from("community_videos")
+        .select("*")
+        .order("likes", { ascending: false })
         .limit(input.limit);
 
       if (input.cursor) {
-        const cursorDoc = await adminDb
-          .collection("communityVideos")
-          .doc(input.cursor)
-          .get();
-        if (cursorDoc.exists) {
-          query = query.startAfter(cursorDoc);
+        const { data: cursorDoc } = await supabase
+          .from("community_videos")
+          .select("likes")
+          .eq("id", input.cursor)
+          .single();
+        if (cursorDoc) {
+          query = query.lt("likes", cursorDoc["likes"]);
         }
       }
 
-      const snap = await query.get();
-      const videos = snap.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          generationId: data["generationId"] as string,
-          userId: data["userId"] as string,
-          displayName: (data["displayName"] as string) ?? "Anonymous",
-          videoUrl: data["videoUrl"] as string,
-          thumbnailUrl: (data["thumbnailUrl"] as string | null) ?? null,
-          prompt: data["prompt"] as string,
-          likes: (data["likes"] as number) ?? 0,
-          remixCount: (data["remixCount"] as number) ?? 0,
-          createdAt: (data["createdAt"] as { toDate(): Date }).toDate(),
-        };
-      });
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+
+      const videos = (data ?? []).map((row) => ({
+        id: row["id"] as string,
+        generationId: row["generation_id"] as string,
+        userId: row["user_id"] as string,
+        displayName: (row["display_name"] as string) ?? "Anonymous",
+        videoUrl: row["video_url"] as string,
+        thumbnailUrl: (row["thumbnail_url"] as string | null) ?? null,
+        prompt: row["prompt"] as string,
+        likes: (row["likes"] as number) ?? 0,
+        remixCount: (row["remix_count"] as number) ?? 0,
+        createdAt: new Date(row["created_at"] as string),
+      }));
 
       const nextCursor =
-        snap.docs.length === input.limit
-          ? snap.docs[snap.docs.length - 1]!.id
+        videos.length === input.limit
+          ? videos[videos.length - 1]!.id
           : undefined;
 
       return { videos, nextCursor };
@@ -74,7 +62,6 @@ export const communityRouter = router({
 
   /**
    * Publish a completed generation to the community feed.
-   * The generation must belong to the authenticated user.
    */
   publish: protectedProcedure
     .input(
@@ -85,45 +72,48 @@ export const communityRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { userId, user } = ctx;
 
-      const genDoc = await adminDb
-        .collection("generations")
-        .doc(input.generationId)
-        .get();
+      const { data: gen, error } = await supabase
+        .from("generations")
+        .select("*")
+        .eq("id", input.generationId)
+        .single();
 
-      if (!genDoc.exists) {
+      if (error || !gen) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Generation not found" });
       }
 
-      const gen = genDoc.data()!;
-      if (gen["userId"] !== userId) {
+      if (gen["user_id"] !== userId) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Not your generation" });
       }
 
-      if (gen["status"] !== "completed" || !gen["videoUrl"]) {
+      if (gen["status"] !== "completed" || !gen["video_url"]) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Only completed videos can be published",
         });
       }
 
-      // Upsert to communityVideos collection
-      await adminDb.collection("communityVideos").doc(input.generationId).set({
-        generationId: input.generationId,
-        userId,
-        displayName: user.displayName ?? "Anonymous",
-        videoUrl: gen["videoUrl"],
-        thumbnailUrl: gen["thumbnailUrl"] ?? null,
+      // Upsert to community_videos table
+      await supabase.from("community_videos").upsert({
+        id: input.generationId,
+        generation_id: input.generationId,
+        user_id: userId,
+        display_name: user.displayName ?? "Anonymous",
+        video_url: gen["video_url"],
+        thumbnail_url: gen["thumbnail_url"] ?? null,
         prompt: gen["prompt"],
         likes: 0,
-        remixCount: 0,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        remix_count: 0,
       });
 
       // Mark the generation as public
-      await adminDb.collection("generations").doc(input.generationId).update({
-        isPublic: true,
-      });
+      const { error: updateErr } = await supabase.from("generations").update({
+        is_public: true,
+      }).eq("id", input.generationId);
+
+      if (updateErr) {
+        console.error("Failed to mark generation as public:", updateErr.message);
+      }
 
       return { published: true };
     }),
@@ -135,34 +125,56 @@ export const communityRouter = router({
     .input(z.object({ communityVideoId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const { userId } = ctx;
-      const likeRef = adminDb
-        .collection("communityLikes")
-        .doc(`${input.communityVideoId}_${userId}`);
+      const likeId = `${input.communityVideoId}_${userId}`;
 
-      const existing = await likeRef.get();
-      if (existing.exists) {
+      const { data: existing } = await supabase
+        .from("community_likes")
+        .select("id")
+        .eq("id", likeId)
+        .single();
+
+      if (existing) {
         // Unlike
-        await likeRef.delete();
-        await adminDb
-          .collection("communityVideos")
-          .doc(input.communityVideoId)
-          .update({ likes: FieldValue.increment(-1) });
+        await supabase.from("community_likes").delete().eq("id", likeId);
+        // Decrement likes count
+        const { data: video } = await supabase
+          .from("community_videos")
+          .select("likes")
+          .eq("id", input.communityVideoId)
+          .single();
+        if (video) {
+          await supabase
+            .from("community_videos")
+            .update({ likes: Math.max(0, (video["likes"] as number) - 1) })
+            .eq("id", input.communityVideoId);
+        }
         return { liked: false };
       }
 
       // Like
-      await likeRef.set({ userId, communityVideoId: input.communityVideoId, createdAt: Timestamp.now() });
-      await adminDb
-        .collection("communityVideos")
-        .doc(input.communityVideoId)
-        .update({ likes: FieldValue.increment(1) });
+      await supabase.from("community_likes").insert({
+        id: likeId,
+        user_id: userId,
+        community_video_id: input.communityVideoId,
+      });
+      // Increment likes count
+      const { data: video } = await supabase
+        .from("community_videos")
+        .select("likes")
+        .eq("id", input.communityVideoId)
+        .single();
+      if (video) {
+        await supabase
+          .from("community_videos")
+          .update({ likes: ((video["likes"] as number) ?? 0) + 1 })
+          .eq("id", input.communityVideoId);
+      }
 
       return { liked: true };
     }),
 
   /**
-   * Remix a community video — generates a new video using the original
-   * prompt as a seed, modified by the user's prompt.
+   * Remix a community video.
    */
   remix: protectedProcedure
     .input(communityRemixSchema)
@@ -170,19 +182,17 @@ export const communityRouter = router({
       const { userId, user } = ctx;
 
       // Verify source exists
-      const sourceDoc = await adminDb
-        .collection("communityVideos")
-        .doc(input.sourceGenerationId)
-        .get();
+      const { data: sourceData, error } = await supabase
+        .from("community_videos")
+        .select("*")
+        .eq("id", input.sourceGenerationId)
+        .single();
 
-      if (!sourceDoc.exists) {
+      if (error || !sourceData) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Source video not found" });
       }
 
-      const sourceData = sourceDoc.data()!;
       const basePrompt = sourceData["prompt"] as string;
-
-      // Combine original prompt with the remix prompt
       const remixPrompt = `${input.prompt} — inspired by: ${basePrompt.slice(0, 200)}`;
 
       const routing = routeModel({
@@ -248,7 +258,11 @@ export const communityRouter = router({
       });
 
       // Increment remix count on source video
-      await sourceDoc.ref.update({ remixCount: FieldValue.increment(1) });
+      const currentRemixCount = (sourceData["remix_count"] as number) ?? 0;
+      await supabase
+        .from("community_videos")
+        .update({ remix_count: currentRemixCount + 1 })
+        .eq("id", input.sourceGenerationId);
 
       return { generationId: generation.id };
     }),

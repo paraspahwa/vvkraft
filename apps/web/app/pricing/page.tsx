@@ -22,10 +22,10 @@ const CREDIT_PACKS = [
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [buyError, setBuyError] = useState<string | null>(null);
-  const { firebaseUser } = useAuth();
+  const { user: authUser } = useAuth();
   const router = useRouter();
   const { data: user } = trpc.user.me.useQuery(undefined, {
-    enabled: !!firebaseUser,
+    enabled: !!authUser,
     retry: false,
   });
 
@@ -34,7 +34,7 @@ export default function PricingPage() {
 
   const handleBuyCreditPack = async (credits: number) => {
     setBuyError(null);
-    if (!firebaseUser) {
+    if (!authUser) {
       router.push("/auth/login");
       return;
     }
@@ -115,7 +115,7 @@ export default function PricingPage() {
               plan={plan}
               billingPeriod={billingPeriod}
               currentTier={user?.tier}
-              isAuthenticated={!!firebaseUser}
+              isAuthenticated={!!authUser}
             />
           ))}
         </div>
@@ -190,7 +190,7 @@ export default function PricingPage() {
       </div>
   );
 
-  if (firebaseUser) {
+  if (authUser) {
     return (
       <AppLayout>
         <Header title="Pricing" description="Choose the plan that works for you" />

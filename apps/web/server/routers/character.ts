@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { characterCreateSchema } from "@videoforge/shared";
 import { createCharacter, getUserCharacters } from "../../lib/db";
-import { adminDb } from "../../lib/firebase-admin";
+import { supabase } from "../../lib/supabase";
 import { deleteFromR2, getPresignedUploadUrl, buildCharacterKey } from "../../lib/r2";
 
 export const characterRouter = router({
@@ -13,7 +13,6 @@ export const characterRouter = router({
   }),
 
   // Get a presigned upload URL for a character's reference image.
-  // The client uploads directly to R2; the returned publicUrl is stored in the character record.
   getUploadUrl: protectedProcedure
     .input(
       z.object({
@@ -24,7 +23,7 @@ export const characterRouter = router({
     .mutation(async ({ ctx, input }) => {
       const key = buildCharacterKey(ctx.userId, input.characterId);
       const uploadUrl = await getPresignedUploadUrl(key, input.contentType, 3600);
-      const publicUrl = `${process.env.R2_PUBLIC_URL ?? ""}/${key}`;
+      const publicUrl = `${process.env.B2_PUBLIC_URL ?? ""}/${key}`;
       return { uploadUrl, publicUrl, key };
     }),
 
@@ -56,21 +55,26 @@ export const characterRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const doc = await adminDb.collection("characters").doc(input.id).get();
-      if (!doc.exists) throw new TRPCError({ code: "NOT_FOUND" });
-      if (doc.data()!["userId"] !== ctx.userId) throw new TRPCError({ code: "FORBIDDEN" });
+      const { data: doc, error } = await supabase
+        .from("characters")
+        .select("*")
+        .eq("id", input.id)
+        .single();
 
-      const r2Key = doc.data()!["r2Key"] as string;
+      if (error || !doc) throw new TRPCError({ code: "NOT_FOUND" });
+      if (doc["user_id"] !== ctx.userId) throw new TRPCError({ code: "FORBIDDEN" });
 
-      // Delete from R2 if stored there
+      const r2Key = doc["r2_key"] as string;
+
+      // Delete from B2 if stored there
       if (r2Key) {
         await deleteFromR2(r2Key).catch(() => {
           // Non-fatal: log and continue
-          console.warn(`Failed to delete R2 object: ${r2Key}`);
+          console.warn(`Failed to delete storage object: ${r2Key}`);
         });
       }
 
-      await adminDb.collection("characters").doc(input.id).delete();
+      await supabase.from("characters").delete().eq("id", input.id);
       return { success: true };
     }),
 });

@@ -1,81 +1,172 @@
-import { adminDb } from "./firebase-admin";
+import { supabase } from "./supabase";
 import type { User, Generation, Character, CreditTransaction, SubscriptionTier, VideoUpscaleJob, VideoEditorProject } from "@videoforge/shared";
-import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
-// Collection helpers
-const usersCol = () => adminDb.collection("users");
-const generationsCol = () => adminDb.collection("generations");
-const charactersCol = () => adminDb.collection("characters");
-const transactionsCol = () => adminDb.collection("creditTransactions");
-const upscaleJobsCol = () => adminDb.collection("videoUpscaleJobs");
-const editorProjectsCol = () => adminDb.collection("videoEditorProjects");
+// ── Mapping helpers (snake_case DB columns → camelCase TS interfaces) ────────
 
-function fromTimestamp(ts: Timestamp): Date {
-  return ts.toDate();
+function rowToUser(row: Record<string, unknown>): User {
+  return {
+    id: row["id"] as string,
+    email: row["email"] as string,
+    displayName: (row["display_name"] as string) ?? null,
+    photoURL: (row["photo_url"] as string) ?? null,
+    tier: row["tier"] as SubscriptionTier,
+    credits: row["credits"] as number,
+    creditsUsedThisMonth: row["credits_used_this_month"] as number,
+    razorpayCustomerId: (row["razorpay_customer_id"] as string) ?? null,
+    razorpaySubscriptionId: (row["razorpay_subscription_id"] as string) ?? null,
+    createdAt: new Date(row["created_at"] as string),
+    updatedAt: new Date(row["updated_at"] as string),
+  };
 }
 
-type FirestoreDocData = Record<string, unknown> & {
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  processingStartedAt?: Timestamp;
-  completedAt?: Timestamp;
-};
-
-function docToUser(data: FirestoreDocData, id: string): User {
+function rowToGeneration(row: Record<string, unknown>): Generation {
   return {
-    ...data,
-    id,
-    createdAt: fromTimestamp(data.createdAt),
-    updatedAt: fromTimestamp(data.updatedAt),
-  } as User;
-}
-
-function docToGeneration(data: FirestoreDocData, id: string): Generation {
-  return {
-    ...data,
-    id,
-    createdAt: fromTimestamp(data.createdAt),
-    updatedAt: fromTimestamp(data.updatedAt),
-    processingStartedAt: data.processingStartedAt ? fromTimestamp(data.processingStartedAt) : null,
-    completedAt: data.completedAt ? fromTimestamp(data.completedAt) : null,
+    id: row["id"] as string,
+    userId: row["user_id"] as string,
+    status: row["status"] as Generation["status"],
+    prompt: row["prompt"] as string,
+    negativePrompt: (row["negative_prompt"] as string) ?? null,
+    model: row["model"] as Generation["model"],
+    resolution: row["resolution"] as Generation["resolution"],
+    durationSeconds: row["duration_seconds"] as number,
+    aspectRatio: row["aspect_ratio"] as Generation["aspectRatio"],
+    seed: (row["seed"] as number) ?? null,
+    motionStrength: (row["motion_strength"] as number) ?? null,
+    referenceImageUrl: (row["reference_image_url"] as string) ?? null,
+    characterId: (row["character_id"] as string) ?? null,
+    videoUrl: (row["video_url"] as string) ?? null,
+    thumbnailUrl: (row["thumbnail_url"] as string) ?? null,
+    r2Key: (row["r2_key"] as string) ?? null,
+    falRequestId: (row["fal_request_id"] as string) ?? null,
+    creditsCost: row["credits_cost"] as number,
+    actualCostUsd: (row["actual_cost_usd"] as number) ?? null,
+    errorMessage: (row["error_message"] as string) ?? null,
+    processingStartedAt: row["processing_started_at"] ? new Date(row["processing_started_at"] as string) : null,
+    completedAt: row["completed_at"] ? new Date(row["completed_at"] as string) : null,
+    createdAt: new Date(row["created_at"] as string),
+    updatedAt: new Date(row["updated_at"] as string),
   } as Generation;
+}
+
+function rowToCharacter(row: Record<string, unknown>): Character {
+  return {
+    id: row["id"] as string,
+    userId: row["user_id"] as string,
+    name: row["name"] as string,
+    description: (row["description"] as string) ?? null,
+    referenceImageUrl: row["reference_image_url"] as string,
+    r2Key: row["r2_key"] as string,
+    generationCount: row["generation_count"] as number,
+    createdAt: new Date(row["created_at"] as string),
+    updatedAt: new Date(row["updated_at"] as string),
+  };
+}
+
+function rowToUpscaleJob(row: Record<string, unknown>): VideoUpscaleJob {
+  return {
+    id: row["id"] as string,
+    userId: row["user_id"] as string,
+    status: row["status"] as VideoUpscaleJob["status"],
+    inputVideoUrl: row["input_video_url"] as string,
+    inputDurationSeconds: row["input_duration_seconds"] as number,
+    inputR2Key: (row["input_r2_key"] as string) ?? null,
+    qualityMode: row["quality_mode"] as VideoUpscaleJob["qualityMode"],
+    outputVideoUrl: (row["output_video_url"] as string) ?? null,
+    outputR2Key: (row["output_r2_key"] as string) ?? null,
+    falRequestId: (row["fal_request_id"] as string) ?? null,
+    creditsCost: row["credits_cost"] as number,
+    errorMessage: (row["error_message"] as string) ?? null,
+    processingStartedAt: row["processing_started_at"] ? new Date(row["processing_started_at"] as string) : null,
+    completedAt: row["completed_at"] ? new Date(row["completed_at"] as string) : null,
+    createdAt: new Date(row["created_at"] as string),
+    updatedAt: new Date(row["updated_at"] as string),
+  } as VideoUpscaleJob;
+}
+
+function rowToEditorProject(row: Record<string, unknown>): VideoEditorProject {
+  return {
+    id: row["id"] as string,
+    userId: row["user_id"] as string,
+    name: row["name"] as string,
+    clips: (row["clips"] ?? []) as VideoEditorProject["clips"],
+    textOverlays: (row["text_overlays"] ?? []) as VideoEditorProject["textOverlays"],
+    backgroundAudioUrl: (row["background_audio_url"] as string) ?? null,
+    backgroundAudioVolume: (row["background_audio_volume"] as number) ?? 0.5,
+    status: row["status"] as VideoEditorProject["status"],
+    exportedVideoUrl: (row["exported_video_url"] as string) ?? null,
+    exportedR2Key: (row["exported_r2_key"] as string) ?? null,
+    errorMessage: (row["error_message"] as string) ?? null,
+    totalDurationSeconds: (row["total_duration_seconds"] as number) ?? 0,
+    createdAt: new Date(row["created_at"] as string),
+    updatedAt: new Date(row["updated_at"] as string),
+  } as VideoEditorProject;
+}
+
+// camelCase key to snake_case converter for update objects
+function toSnake(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    result[snakeKey] = value instanceof Date ? value.toISOString() : value;
+  }
+  return result;
 }
 
 // ── User operations ──────────────────────────────────────────────────────────
 
 export async function getUserById(userId: string): Promise<User | null> {
-  const doc = await usersCol().doc(userId).get();
-  if (!doc.exists) return null;
-  return docToUser(doc.data() as FirestoreDocData, doc.id);
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) return null;
+  return rowToUser(data);
 }
 
 export async function createUser(
   userId: string,
   data: Pick<User, "email" | "displayName" | "photoURL">
 ): Promise<User> {
-  const now = Timestamp.now();
-  const userData = {
-    ...data,
+  const now = new Date().toISOString();
+  const row = {
+    id: userId,
+    email: data.email,
+    display_name: data.displayName,
+    photo_url: data.photoURL,
     tier: "free" as SubscriptionTier,
     credits: 0,
-    creditsUsedThisMonth: 0,
-    razorpayCustomerId: null,
-    razorpaySubscriptionId: null,
-    createdAt: now,
-    updatedAt: now,
+    credits_used_this_month: 0,
+    razorpay_customer_id: null,
+    razorpay_subscription_id: null,
+    created_at: now,
+    updated_at: now,
   };
-  await usersCol().doc(userId).set(userData);
-  return docToUser(userData, userId);
+
+  const { data: inserted, error } = await supabase
+    .from("users")
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create user: ${error.message}`);
+  return rowToUser(inserted);
 }
 
 export async function updateUser(
   userId: string,
   data: Partial<Omit<User, "id" | "createdAt">>
 ): Promise<void> {
-  await usersCol().doc(userId).update({
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
+  const snakeData = toSnake(data as Record<string, unknown>);
+  snakeData["updated_at"] = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("users")
+    .update(snakeData)
+    .eq("id", userId);
+
+  if (error) throw new Error(`Failed to update user: ${error.message}`);
 }
 
 export async function deductCredits(
@@ -84,34 +175,14 @@ export async function deductCredits(
   generationId: string,
   description: string
 ): Promise<void> {
-  await adminDb.runTransaction(async (tx) => {
-    const userRef = usersCol().doc(userId);
-    const userDoc = await tx.get(userRef);
-    if (!userDoc.exists) throw new Error("User not found");
-
-    const user = userDoc.data() as User;
-    if (user.credits < amount) throw new Error("Insufficient credits");
-
-    const balanceAfter = user.credits - amount;
-
-    tx.update(userRef, {
-      credits: FieldValue.increment(-amount),
-      creditsUsedThisMonth: FieldValue.increment(amount),
-      updatedAt: Timestamp.now(),
-    });
-
-    const txRef = transactionsCol().doc();
-    tx.set(txRef, {
-      userId,
-      amount: -amount,
-      balanceAfter,
-      type: "generation",
-      description,
-      generationId,
-      razorpayPaymentId: null,
-      createdAt: Timestamp.now(),
-    });
+  const { error } = await supabase.rpc("deduct_credits", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_generation_id: generationId,
+    p_description: description,
   });
+
+  if (error) throw new Error(error.message);
 }
 
 export async function addCredits(
@@ -121,31 +192,15 @@ export async function addCredits(
   description: string,
   razorpayPaymentId?: string
 ): Promise<void> {
-  await adminDb.runTransaction(async (tx) => {
-    const userRef = usersCol().doc(userId);
-    const userDoc = await tx.get(userRef);
-    if (!userDoc.exists) throw new Error("User not found");
-
-    const user = userDoc.data() as User;
-    const balanceAfter = user.credits + amount;
-
-    tx.update(userRef, {
-      credits: FieldValue.increment(amount),
-      updatedAt: Timestamp.now(),
-    });
-
-    const txRef = transactionsCol().doc();
-    tx.set(txRef, {
-      userId,
-      amount,
-      balanceAfter,
-      type,
-      description,
-      generationId: null,
-      razorpayPaymentId: razorpayPaymentId ?? null,
-      createdAt: Timestamp.now(),
-    });
+  const { error } = await supabase.rpc("add_credits", {
+    p_user_id: userId,
+    p_amount: amount,
+    p_type: type,
+    p_description: description,
+    p_razorpay_payment_id: razorpayPaymentId ?? null,
   });
+
+  if (error) throw new Error(error.message);
 }
 
 // ── Generation operations ────────────────────────────────────────────────────
@@ -153,32 +208,43 @@ export async function addCredits(
 export async function createGeneration(
   data: Omit<Generation, "id" | "createdAt" | "updatedAt">
 ): Promise<Generation> {
-  const now = Timestamp.now();
-  const ref = generationsCol().doc();
-  const generation = { ...data, createdAt: now, updatedAt: now };
-  await ref.set(generation);
-  return {
-    ...data,
-    id: ref.id,
-    createdAt: now.toDate(),
-    updatedAt: now.toDate(),
-  };
+  const snakeData = toSnake(data as unknown as Record<string, unknown>);
+  delete snakeData["id"];
+
+  const { data: inserted, error } = await supabase
+    .from("generations")
+    .insert(snakeData)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create generation: ${error.message}`);
+  return rowToGeneration(inserted);
 }
 
 export async function getGenerationById(generationId: string): Promise<Generation | null> {
-  const doc = await generationsCol().doc(generationId).get();
-  if (!doc.exists) return null;
-  return docToGeneration(doc.data() as FirestoreDocData, doc.id);
+  const { data, error } = await supabase
+    .from("generations")
+    .select("*")
+    .eq("id", generationId)
+    .single();
+
+  if (error || !data) return null;
+  return rowToGeneration(data);
 }
 
 export async function updateGeneration(
   generationId: string,
   data: Partial<Omit<Generation, "id" | "createdAt">>
 ): Promise<void> {
-  await generationsCol().doc(generationId).update({
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
+  const snakeData = toSnake(data as unknown as Record<string, unknown>);
+  snakeData["updated_at"] = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("generations")
+    .update(snakeData)
+    .eq("id", generationId);
+
+  if (error) throw new Error(`Failed to update generation: ${error.message}`);
 }
 
 export async function getUserGenerations(
@@ -186,18 +252,28 @@ export async function getUserGenerations(
   limit = 20,
   startAfter?: string
 ): Promise<Generation[]> {
-  let query = generationsCol()
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
+  let query = supabase
+    .from("generations")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (startAfter) {
-    const cursor = await generationsCol().doc(startAfter).get();
-    query = query.startAfter(cursor);
+    // Cursor-based pagination: get created_at of the cursor document
+    const { data: cursor } = await supabase
+      .from("generations")
+      .select("created_at")
+      .eq("id", startAfter)
+      .single();
+    if (cursor) {
+      query = query.lt("created_at", cursor["created_at"]);
+    }
   }
 
-  const snapshot = await query.get();
-  return snapshot.docs.map((doc) => docToGeneration(doc.data() as FirestoreDocData, doc.id));
+  const { data, error } = await query;
+  if (error) throw new Error(`Failed to list generations: ${error.message}`);
+  return (data ?? []).map(rowToGeneration);
 }
 
 // ── Character operations ─────────────────────────────────────────────────────
@@ -205,72 +281,80 @@ export async function getUserGenerations(
 export async function createCharacter(
   data: Omit<Character, "id" | "createdAt" | "updatedAt" | "generationCount">
 ): Promise<Character> {
-  const now = Timestamp.now();
-  const ref = charactersCol().doc();
-  const character = { ...data, generationCount: 0, createdAt: now, updatedAt: now };
-  await ref.set(character);
-  return {
-    ...character,
-    id: ref.id,
-    createdAt: now.toDate(),
-    updatedAt: now.toDate(),
+  const now = new Date().toISOString();
+  const row = {
+    user_id: data.userId,
+    name: data.name,
+    description: data.description,
+    reference_image_url: data.referenceImageUrl,
+    r2_key: data.r2Key,
+    generation_count: 0,
+    created_at: now,
+    updated_at: now,
   };
+
+  const { data: inserted, error } = await supabase
+    .from("characters")
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create character: ${error.message}`);
+  return rowToCharacter(inserted);
 }
 
 export async function getUserCharacters(userId: string): Promise<Character[]> {
-  const snapshot = await charactersCol()
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .get();
+  const { data, error } = await supabase
+    .from("characters")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
 
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      createdAt: fromTimestamp(data["createdAt"]),
-      updatedAt: fromTimestamp(data["updatedAt"]),
-    } as Character;
-  });
+  if (error) throw new Error(`Failed to list characters: ${error.message}`);
+  return (data ?? []).map(rowToCharacter);
 }
 
 // ── Video Upscale Job operations ──────────────────────────────────────────────
 
-function docToUpscaleJob(data: FirestoreDocData, id: string): VideoUpscaleJob {
-  return {
-    ...data,
-    id,
-    createdAt: fromTimestamp(data.createdAt),
-    updatedAt: fromTimestamp(data.updatedAt),
-    processingStartedAt: data.processingStartedAt ? fromTimestamp(data.processingStartedAt) : null,
-    completedAt: data.completedAt ? fromTimestamp(data.completedAt) : null,
-  } as VideoUpscaleJob;
-}
-
 export async function createUpscaleJob(
   data: Omit<VideoUpscaleJob, "id" | "createdAt" | "updatedAt">
 ): Promise<VideoUpscaleJob> {
-  const now = Timestamp.now();
-  const ref = upscaleJobsCol().doc();
-  const doc = { ...data, createdAt: now, updatedAt: now };
-  await ref.set(doc);
-  return { ...data, id: ref.id, createdAt: now.toDate(), updatedAt: now.toDate() };
+  const snakeData = toSnake(data as unknown as Record<string, unknown>);
+
+  const { data: inserted, error } = await supabase
+    .from("video_upscale_jobs")
+    .insert(snakeData)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create upscale job: ${error.message}`);
+  return rowToUpscaleJob(inserted);
 }
 
 export async function getUpscaleJobById(jobId: string): Promise<VideoUpscaleJob | null> {
-  const doc = await upscaleJobsCol().doc(jobId).get();
-  if (!doc.exists) return null;
-  return docToUpscaleJob(doc.data() as FirestoreDocData, doc.id);
+  const { data, error } = await supabase
+    .from("video_upscale_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .single();
+
+  if (error || !data) return null;
+  return rowToUpscaleJob(data);
 }
 
 export async function updateUpscaleJob(
   jobId: string,
   data: Partial<Omit<VideoUpscaleJob, "id" | "createdAt">>
 ): Promise<void> {
-  await upscaleJobsCol().doc(jobId).update({
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
+  const snakeData = toSnake(data as unknown as Record<string, unknown>);
+  snakeData["updated_at"] = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("video_upscale_jobs")
+    .update(snakeData)
+    .eq("id", jobId);
+
+  if (error) throw new Error(`Failed to update upscale job: ${error.message}`);
 }
 
 export async function getUserUpscaleJobs(
@@ -278,70 +362,92 @@ export async function getUserUpscaleJobs(
   limit = 20,
   startAfter?: string
 ): Promise<VideoUpscaleJob[]> {
-  let query = upscaleJobsCol()
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
+  let query = supabase
+    .from("video_upscale_jobs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (startAfter) {
-    const cursor = await upscaleJobsCol().doc(startAfter).get();
-    query = query.startAfter(cursor);
+    const { data: cursor } = await supabase
+      .from("video_upscale_jobs")
+      .select("created_at")
+      .eq("id", startAfter)
+      .single();
+    if (cursor) {
+      query = query.lt("created_at", cursor["created_at"]);
+    }
   }
 
-  const snapshot = await query.get();
-  return snapshot.docs.map((doc) => docToUpscaleJob(doc.data() as FirestoreDocData, doc.id));
+  const { data, error } = await query;
+  if (error) throw new Error(`Failed to list upscale jobs: ${error.message}`);
+  return (data ?? []).map(rowToUpscaleJob);
 }
 
 // ── Video Editor Project operations ──────────────────────────────────────────
 
-function docToEditorProject(data: FirestoreDocData, id: string): VideoEditorProject {
-  return {
-    ...data,
-    id,
-    createdAt: fromTimestamp(data.createdAt),
-    updatedAt: fromTimestamp(data.updatedAt),
-  } as VideoEditorProject;
-}
-
 export async function createEditorProject(
   data: Omit<VideoEditorProject, "id" | "createdAt" | "updatedAt">
 ): Promise<VideoEditorProject> {
-  const now = Timestamp.now();
-  const ref = editorProjectsCol().doc();
-  const doc = { ...data, createdAt: now, updatedAt: now };
-  await ref.set(doc);
-  return { ...data, id: ref.id, createdAt: now.toDate(), updatedAt: now.toDate() };
+  const snakeData = toSnake(data as unknown as Record<string, unknown>);
+
+  const { data: inserted, error } = await supabase
+    .from("video_editor_projects")
+    .insert(snakeData)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create editor project: ${error.message}`);
+  return rowToEditorProject(inserted);
 }
 
 export async function getEditorProjectById(projectId: string): Promise<VideoEditorProject | null> {
-  const doc = await editorProjectsCol().doc(projectId).get();
-  if (!doc.exists) return null;
-  return docToEditorProject(doc.data() as FirestoreDocData, doc.id);
+  const { data, error } = await supabase
+    .from("video_editor_projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+
+  if (error || !data) return null;
+  return rowToEditorProject(data);
 }
 
 export async function updateEditorProject(
   projectId: string,
   data: Partial<Omit<VideoEditorProject, "id" | "createdAt">>
 ): Promise<void> {
-  await editorProjectsCol().doc(projectId).update({
-    ...data,
-    updatedAt: Timestamp.now(),
-  });
+  const snakeData = toSnake(data as unknown as Record<string, unknown>);
+  snakeData["updated_at"] = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("video_editor_projects")
+    .update(snakeData)
+    .eq("id", projectId);
+
+  if (error) throw new Error(`Failed to update editor project: ${error.message}`);
 }
 
 export async function getUserEditorProjects(
   userId: string,
   limit = 20
 ): Promise<VideoEditorProject[]> {
-  const snapshot = await editorProjectsCol()
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .limit(limit)
-    .get();
+  const { data, error } = await supabase
+    .from("video_editor_projects")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
 
-  return snapshot.docs.map((doc) => docToEditorProject(doc.data() as FirestoreDocData, doc.id));
+  if (error) throw new Error(`Failed to list editor projects: ${error.message}`);
+  return (data ?? []).map(rowToEditorProject);
 }
 
 export async function deleteEditorProject(projectId: string): Promise<void> {
-  await editorProjectsCol().doc(projectId).delete();
+  const { error } = await supabase
+    .from("video_editor_projects")
+    .delete()
+    .eq("id", projectId);
+
+  if (error) throw new Error(`Failed to delete editor project: ${error.message}`);
 }
