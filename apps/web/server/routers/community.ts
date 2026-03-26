@@ -107,9 +107,13 @@ export const communityRouter = router({
       });
 
       // Mark the generation as public
-      await supabase.from("generations").update({
+      const { error: updateErr } = await supabase.from("generations").update({
         is_public: true,
       }).eq("id", input.generationId);
+
+      if (updateErr) {
+        console.error("Failed to mark generation as public:", updateErr.message);
+      }
 
       return { published: true };
     }),

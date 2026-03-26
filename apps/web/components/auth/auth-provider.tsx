@@ -14,7 +14,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -29,8 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message ?? "Sign in failed");
   };
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await authClient.signUp.email({ email, password, name: "" });
+  const signUp = async (email: string, password: string, name?: string) => {
+    const { error } = await authClient.signUp.email({
+      email,
+      password,
+      name: name || email.split("@")[0] || "",
+    });
     if (error) throw new Error(error.message ?? "Sign up failed");
   };
 
