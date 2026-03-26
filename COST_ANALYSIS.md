@@ -611,7 +611,7 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 ### Scenario A: Solo Content Creator — India (Social Media)
 
 **Profile:** 15–20 short videos/month, 720p, no watermark
-**Recommended Plan:** Starter India — **₹399/month** (₹3,828/year)
+**Recommended Plan:** Starter India — **₹399/month** (or ₹319/mo billed annually, ₹3,828/year)
 
 | Item | Monthly Cost | Credits Used |
 |---|:---:|:---:|
