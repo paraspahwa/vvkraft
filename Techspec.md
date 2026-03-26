@@ -90,9 +90,9 @@
 │ ┌─────────────────────────────────────────────────────────────────────┐ │
 │ │ DATA LAYER │ │
 │ │ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │ │
-│ │ │ Firestore │ │ Firebase │ │ Cloudflare │ │ Redis │ │ │
-│ │ │ (Primary) │ │ Auth │ │ R2 (Video) │ │ (Cache) │ │ │
-│ │ │ NoSQL │ │ OAuth │ │ Object Stor│ │ Sessions │ │ │
+│ │ │ Supabase  │ │ Better   │ │ Backblaze  │ │ Redis │ │ │
+│ │ │ PostgreSQL│ │ Auth     │ │ B2 (Video) │ │ (Cache) │ │ │
+│ │ │ (Primary) │ │ OAuth    │ │ Object Stor│ │ Sessions │ │ │
 │ │ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │ │
 │ └─────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -142,13 +142,13 @@
 
 ### Cache Redis 7.x Upstash/Redis Cloud
 
-### Database Cloud Firestore - NoSQL document store
+### Database Supabase PostgreSQL - SQL relational database
 
-### Auth Firebase Auth 10.x OAuth, JWT
+### Auth Better Auth 1.x Email/password, Google OAuth, cookie sessions
 
-### Storage Cloudflare R2 - Video storage
+### Storage Backblaze B2 - Video/object storage
 
-### CDN Cloudflare Stream - Video delivery
+### CDN Backblaze B2 Public URL - Video delivery (Cloudflare Stream: future enhancement)
 
 ### AI API Fal.ai SDK Latest Video generation
 
@@ -160,14 +160,14 @@
 
 ## 2. Database Schema
 
-### 2.1 Firestore Collections
+### 2.1 Database Tables (Supabase PostgreSQL)
 
-### Collection:users
+### Table: users
 
 ```
 interfaceUser {
 // Identification
-uid:string; // Firebase Auth UID
+id:string; // Better Auth user ID
 email:string;
 displayName?:string;
 photoURL?:string;
@@ -206,10 +206,10 @@ lastLoginAt:Timestamp;
 ```
 ```
 // Security Rules:
-// - Users can read/write only their own document
-// - Admins can read all (custom claim)
+// - Users can read/write only their own row
+// - Admins can read all (via RLS policy)
 ```
-### Collection:generations
+### Table: generations
 
 ```
 interfaceGeneration {
@@ -233,7 +233,7 @@ negativePrompt?:string;
 inputImageUrl?:string; // For I2V
 inputVideoUrl?:string; // For V2V
 inputAudioUrl?:string; // For avatar
-characterIds?:string[]; // References to characters collection
+characterIds?:string[]; // References to characters table
 ```
 ```
 // Generation Config
@@ -309,12 +309,12 @@ isPublic:boolean; // For gallery feature
 }
 ```
 ```
-// TTL Policy: Delete documents 30 days after expiresAt
+// TTL Policy: Delete rows 30 days after expiresAt
 // Composite Indexes:
 // - userId (Ascending) + createdAt (Descending)
 // - status (Ascending) + createdAt (Ascending)
 ```
-### Collection:characters
+### Table: characters
 
 ```
 interfaceCharacter {
@@ -349,7 +349,7 @@ createdAt:Timestamp;
 updatedAt:Timestamp;
 }
 ```
-### Collection:credit_transactions
+### Table: credit_transactions
 
 ```
 interfaceCreditTransaction {
@@ -378,7 +378,7 @@ expiresAt?:Timestamp; // For bonus credits
 // Indexes:
 // - userId + createdAt (desc)
 ```
-### Collection:webhook_events
+### Table: webhook_events
 
 ```
 interfaceWebhookEvent {
@@ -950,31 +950,20 @@ health:failed> waiting * 0.1 ?'degraded':'healthy',
 ### 5.1 Authentication Flow
 
 ```
-// lib/auth.ts
-import{ getAuth, signInWithPopup, GoogleAuthProvider }from'firebase/auth';
-import{ initTRPC, TRPCError }from'@trpc/server';
+// lib/auth-client.ts
+import{ createAuthClient }from'better-auth/client';
+import{ googleOAuthClient }from'better-auth/plugins';
 ```
 ```
-// Client-side auth
-exportasyncfunctionsignInWithGoogle() {
-constauth = getAuth();
-constprovider =newGoogleAuthProvider();
-constresult =awaitsignInWithPopup(auth, provider);
-```
-```
-// Get ID token for API calls
-constidToken =awaitresult.user.getIdToken();
-```
-```
-// Store in secure httpOnly cookie via API call
-awaitfetch('/api/auth/session', {
-method:'POST',
-headers: {'Content-Type':'application/json'},
-body:JSON.stringify({ idToken }),
+exportconstauthClient = createAuthClient({
+baseURL:process.env.NEXT_PUBLIC_APP_URL,
+plugins: [googleOAuthClient()],
 });
 ```
 ```
-returnresult.user;
+// Client-side sign-in with Google
+exportasyncfunctionsignInWithGoogle() {
+awastauthClient.signIn.social({ provider:'google'});
 }
 ```
 ```
@@ -1650,12 +1639,11 @@ NEXT_PUBLIC_APP_URL:z.string().url(),
 NEXT_PUBLIC_API_URL:z.string().url(),
 ```
 ```
-// Firebase
-FIREBASE_PROJECT_ID:z.string(),
-FIREBASE_PRIVATE_KEY:z.string(),
-FIREBASE_CLIENT_EMAIL:z.string().email(),
-NEXT_PUBLIC_FIREBASE_API_KEY:z.string(),
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:z.string(),
+// Better Auth
+BETTER_AUTH_SECRET:z.string(),
+BETTER_AUTH_URL:z.string().url(),
+GOOGLE_CLIENT_ID:z.string(),
+GOOGLE_CLIENT_SECRET:z.string(),
 ```
 ```
 // AI APIs
@@ -1663,11 +1651,12 @@ FAL_KEY:z.string(),
 REPLICATE_API_TOKEN:z.string().optional(),
 ```
 ```
-// Storage
-R2_ACCOUNT_ID:z.string(),
-R2_ACCESS_KEY_ID:z.string(),
-R2_SECRET_ACCESS_KEY:z.string(),
-R2_BUCKET_NAME:z.string(),
+// Storage (Backblaze B2)
+B2_REGION:z.string(),
+B2_APPLICATION_KEY_ID:z.string(),
+B2_APPLICATION_KEY:z.string(),
+B2_BUCKET_NAME:z.string(),
+B2_PUBLIC_URL:z.string().url(),
 ```
 ```
 // Payments
@@ -1825,7 +1814,7 @@ videoforge/
 
 ### MVL Multimodal Visual Language
 
-### R2 Cloudflare object storage (S3-compatible)
+### B2 Backblaze B2 object storage (S3-compatible)
 
 ### T2V Text-to-Video
 

@@ -4,7 +4,7 @@
 # Backend   → FastAPI       (gpu-worker service)
 # Queue     → Redis + Celery
 # GPU       → RunPod        (4090 + A100 mix)
-# Storage   → Cloudflare R2
+# Storage   → Backblaze B2 (web app) / Cloudflare R2 (GPU worker)
 # Processing→ FFmpeg pipeline
 
 services:

@@ -5,9 +5,9 @@ user's subscription tier and current system load.
 
 GPU Tier hierarchy:
   Free      → RTX 3060  (cheapest, limited quality)
-  Creator   → RTX 4090  (Starter plan, ₹199/month)
-  Pro       → A100      (Creator plan, ₹499/month)
-  Studio    → A100      (Pro plan, ₹999/month, priority queue)
+  Creator   → RTX 4090  (Starter plan, ₹399/month)
+  Pro       → A100      (Creator plan, ₹799/month)
+  Studio    → A100      (Pro plan, ₹1299/month, priority queue)
 
 Model routing (multi-model stack):
   Free      → LTX (main) + LTX (preview)          – MVP lite
@@ -50,8 +50,8 @@ class GPURoutingResult:
 
 # GPU tier map: subscription tier → hardware
 # Free users get RTX 3060 (low cost, hidden quality cap).
-# Creator (Starter ₹199) gets RTX 4090 for better throughput.
-# Pro (Creator ₹499) and Studio (Pro ₹999) get A100 for full quality.
+# Creator (Starter ₹399) gets RTX 4090 for better throughput.
+# Pro (Creator ₹799) and Studio (Pro ₹1299) get A100 for full quality.
 _GPU_MAP: dict[SubscriptionTier, GPUTier] = {
     SubscriptionTier.FREE: GPUTier.RTX_3060,
     SubscriptionTier.CREATOR: GPUTier.RTX_4090,

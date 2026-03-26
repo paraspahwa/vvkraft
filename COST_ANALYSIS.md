@@ -148,18 +148,18 @@ Even yearly plans (with 20% user discount) maintain **~50% gross margin**.
 | Plan | Display Name | Monthly Price (INR) | USD Equivalent | Included Videos | GPU | Gross Margin |
 |------|---|:---:|:---:|:---:|:---:|:---:|
 | **Free** | Free | ₹0 | $0 | 3/day | RTX 3060 | — |
-| **Creator** | **Starter** | ₹199 | ~$2.40 | 50/month | RTX 4090 | **~70%** |
-| **Pro** | **Creator** | ₹499 | ~$5.95 | 150/month | A100 | **~65%** |
-| **Studio** | **Pro** | ₹999 | ~$11.90 | 400/month | A100 (priority) | **~60%** |
+| **Creator** | **Starter** | ₹399 | ~$4.75 | 50/month | RTX 4090 | **~85%** |
+| **Pro** | **Creator** | ₹799 | ~$9.51 | 150/month | A100 | **~78%** |
+| **Studio** | **Pro** | ₹1,299 | ~$15.46 | 400/month | A100 (priority) | **~69%** |
 
 ### Yearly Pricing (INR, per month billed annually)
 
 | Plan | Display Name | Monthly Equivalent | Annual Total | Annual Savings vs Monthly |
 |------|---|:---:|:---:|:---:|
 | **Free** | Free | ₹0 | ₹0 | — |
-| **Creator** | Starter | ₹149/mo | ₹1,788/yr | **₹600/yr (25% off)** |
-| **Pro** | Creator | ₹399/mo | ₹4,788/yr | **₹1,200/yr (20% off)** |
-| **Studio** | Pro | ₹799/mo | ₹9,588/yr | **₹2,400/yr (20% off)** |
+| **Creator** | Starter | ₹319/mo | ₹3,828/yr | **₹960/yr (20% off)** |
+| **Pro** | Creator | ₹639/mo | ₹7,668/yr | **₹1,920/yr (20% off)** |
+| **Studio** | Pro | ₹1,039/mo | ₹12,468/yr | **₹3,120/yr (20% off)** |
 
 ### Hidden Controls Per Plan
 
@@ -394,9 +394,9 @@ VideoForge uses **BullMQ** with **Redis**. Lower priority numbers are processed 
 
 | Internal Tier | India Display Name | Revenue (INR) | Revenue (USD) | Video Limit | Est. GPU Cost | **Net Margin** |
 |------|---|:---:|:---:|:---:|:---:|:---:|
-| `creator` (₹199) | **Starter** | ₹199 | ~$2.40 | 50 videos | ~$0.70 | **~$1.70 (70%)** |
-| `pro` (₹499) | **Creator** | ₹499 | ~$5.95 | 150 videos | ~$2.10 | **~$3.85 (65%)** |
-| `studio` (₹999) | **Pro** | ₹999 | ~$11.90 | 400 videos | ~$4.76 | **~$7.14 (60%)** |
+| `creator` (₹399) | **Starter** | ₹399 | ~$4.75 | 50 videos | ~$0.70 | **~$4.05 (85%)** |
+| `pro` (₹799) | **Creator** | ₹799 | ~$9.51 | 150 videos | ~$2.10 | **~$7.41 (78%)** |
+| `studio` (₹1,299) | **Pro** | ₹1,299 | ~$15.46 | 400 videos | ~$4.76 | **~$10.70 (69%)** |
 
 > GPU cost estimate assumes average 10s WAN 2.2 render per video. Real cost is lower due to scene cache hits and dynamic downgrade triggers.
 
@@ -404,9 +404,9 @@ VideoForge uses **BullMQ** with **Redis**. Lower priority numbers are processed 
 
 | Internal Tier | India Display Name | Videos | Est. API Cost | Revenue | Margin |
 |------|---|:---:|:---:|:---:|:---:|
-| `creator` (₹199) | **Starter** | 50 | ~$1.08 | $2.40 | **$1.32 (55%)** |
-| `pro` (₹499) | **Creator** | 150 | ~$3.24 | $5.95 | **$2.71 (46%)** |
-| `studio` (₹999) | **Pro** | 400 | ~$8.64 | $11.90 | **$3.26 (27%)** |
+| `creator` (₹399) | **Starter** | 50 | ~$1.08 | $4.75 | **$3.67 (77%)** |
+| `pro` (₹799) | **Creator** | 150 | ~$3.24 | $9.51 | **$6.27 (66%)** |
+| `studio` (₹1,299) | **Pro** | 400 | ~$8.64 | $15.46 | **$6.82 (44%)** |
 
 > Worst case assumes every video uses max duration + most expensive model. Dynamic downgrade engine prevents this in practice.
 
@@ -500,17 +500,17 @@ Audio Credits = ceil(Base_Credits × AUDIO_SURCHARGE_MULTIPLIER)  // only if aud
 
 ### Example 4: India Creator — Social Media Use
 
-- **Plan:** Creator India — ₹799/month — 100 credits
+- **Plan:** Creator India — ₹799/month — 150 credits
 - **Task:** 15 × 10 s clips using WAN 2.2 (1 credit each)
 - **Total:** 15 credits, API cost: $0.375
-- **Margin:** $9.50 − $0.375 = **$9.13 (96%)**
+- **Margin:** $9.51 − $0.375 = **$9.14 (96%)**
 
 ### Example 5: India Pro — Video Agency
 
-- **Plan:** Pro India — ₹1,999/month — 250 credits
+- **Plan:** Pro India — ₹1,299/month — 400 credits
 - **Task:** 20 × 10 s clips using LTXV 13B (5 credits each)
 - **Total:** 100 credits, API cost: 20 × $0.20 = $4.00
-- **Margin:** $23.80 − $4.00 = **$19.80 (83%)**
+- **Margin:** $15.46 − $4.00 = **$11.46 (74%)**
 
 ---
 
@@ -526,9 +526,9 @@ Audio Credits = ceil(Base_Credits × AUDIO_SURCHARGE_MULTIPLIER)  // only if aud
 
 | Service | Purpose | Estimated Monthly Cost |
 |---------|---------|---|
-| **Firebase Authentication** | User sign-in & session management | Free up to 10k MAU, then $0.0055/MAU |
-| **Firestore** | User profiles, jobs, transactions, credit ledger | Free tier: 1 GB, 50k reads/day; then $0.06/GB + $0.06/100k reads |
-| **Cloudflare R2** | Video file storage | $0.015/GB stored · $0.01/10k GET · Free egress |
+| **Better Auth** | User sign-in & session management | Free (self-hosted npm library) |
+| **Supabase PostgreSQL** | User profiles, jobs, transactions, credit ledger | Free tier: 500 MB DB, 5 GB storage; then $25/mo (Pro plan) |
+| **Backblaze B2** | Video file storage | $0.006/GB stored · $0.01/GB download · Free egress within CDN |
 | **Redis / BullMQ** | Job queue | Self-hosted: server cost; Upstash: ~$1/100k commands |
 | **Vercel / Hosting** | Next.js deployment | $20–$150/mo depending on scale |
 
@@ -583,7 +583,7 @@ Credits are **currency-neutral** — 1 credit has the same purchasing power rega
 
 > **Source:** `apps/web/lib/db.ts`, `apps/web/app/api/webhooks/fal/route.ts`
 
-Every credit movement is recorded in the Firestore `creditTransactions` collection:
+Every credit movement is recorded in the Supabase `credit_transactions` table:
 
 | Field | Values |
 |---|---|
@@ -611,14 +611,14 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 ### Scenario A: Solo Content Creator — India (Social Media)
 
 **Profile:** 15–20 short videos/month, 720p, no watermark
-**Recommended Plan:** Creator India — **₹799/month** (₹7,188/year)
+**Recommended Plan:** Starter India — **₹399/month** (or ₹319/mo billed annually, ₹3,828/year)
 
 | Item | Monthly Cost | Credits Used |
 |---|:---:|:---:|
-| Creator India subscription | ₹799 | — |
-| 20 × 10 s videos (WAN 2.2, 1 cr each) | 20 credits | 20 of 100 |
-| Remaining credits | — | 80 |
-| **Total** | **₹799/month** | — |
+| Starter India subscription | ₹399 | — |
+| 20 × 10 s videos (WAN 2.2, 1 cr each) | 20 credits | 20 of 50 |
+| Remaining credits | — | 30 |
+| **Total** | **₹399/month** | — |
 
 ### Scenario B: Marketing Agency — Global (Product Videos)
 
@@ -650,16 +650,15 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 ### Scenario D: Indian Production Team
 
 **Profile:** 30 videos/month, mix of models, audio on some
-**Recommended Plan:** Pro India — **₹1,999/month**
+**Recommended Plan:** Pro India — **₹1,299/month**
 
 | Item | Credits Used |
 |---|:---:|
 | 20 × 10 s LTXV 13B Distilled (5 cr each) | 100 |
 | 5 × 10 s Kling v2.6 Pro no audio (18 cr each) | 90 |
 | 5 × 5 s Kling v2.6 Pro with audio (14 cr each) | 70 |
-| Total from included (250 credits) | 260 → need small top-up |
-| 50-credit pack | ₹399 |
-| **Monthly cost** | **₹2,398** |
+| Total from included (400 credits) | 260 (within plan) |
+| **Monthly cost** | **₹1,299** |
 
 ---
 
@@ -679,19 +678,19 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 
 | Source | Global | India | Total |
 |---|:---:|:---:|:---:|
-| Creator subs | $3,800 | $2,850 (₹239,700) | $6,650 |
-| Pro subs | $4,900 | $1,904 (₹159,920) | $6,804 |
-| Studio subs | $2,980 | $357 (₹29,995) | $3,337 |
+| Creator subs | $3,800 | $1,425 (₹119,700) | $5,225 |
+| Pro subs | $4,900 | $761 (₹63,920) | $5,661 |
+| Studio subs | $2,980 | $77 (₹6,495) | $3,057 |
 | Credit pack purchases | $2,000 | $714 (₹59,940) | $2,714 |
-| **Monthly total** | **$13,680** | **$5,825** | **$19,505** |
-| **Annual total** | **$164,160** | **$69,900** | **$234,060** |
+| **Monthly total** | **$13,680** | **$2,977** | **$16,657** |
+| **Annual total** | **$164,160** | **$35,724** | **$199,884** |
 
 ### Monthly Cost Projection
 
 | Cost | Amount |
 |---|:---:|
 | fal.ai API costs (~40% of credit revenue) | ~$7,800 |
-| Infrastructure (Firebase, R2, Redis, Hosting) | ~$2,000 |
+| Infrastructure (Supabase, B2, Redis, Hosting) | ~$2,000 |
 | Razorpay fees (~2.5%) | ~$500 |
 | **Monthly cost total** | **~$10,300** |
 | **Monthly profit** | **~$9,200** |
@@ -730,17 +729,18 @@ RAZORPAY_PLAN_STUDIO_YEARLY_INR=plan_xxxxx
 FAL_KEY=fal_xxxxx
 FAL_WEBHOOK_SECRET=xxxxx
 
-# Firebase — auth + database
-FIREBASE_ADMIN_PROJECT_ID=xxxxx
-FIREBASE_ADMIN_CLIENT_EMAIL=xxxxx
-FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
+# Better Auth — authentication
+BETTER_AUTH_SECRET=xxxxx
+BETTER_AUTH_URL=https://yourdomain.com
 
-# Cloudflare R2 — object storage
-R2_ACCOUNT_ID=xxxxx
-R2_ACCESS_KEY_ID=xxxxx
-R2_SECRET_ACCESS_KEY=xxxxx
-R2_BUCKET_NAME=videoforge
-R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+# Supabase — database
+DATABASE_URL=postgresql://xxxxx
+
+# Backblaze B2 — object storage
+B2_APPLICATION_KEY_ID=xxxxx
+B2_APPLICATION_KEY=xxxxx
+B2_BUCKET_NAME=videoforge
+B2_PUBLIC_URL=https://f000.backblazeb2.com/file/videoforge
 
 # Redis — job queue
 REDIS_URL=redis://localhost:6379
@@ -759,6 +759,6 @@ REDIS_URL=redis://localhost:6379
 | `apps/web/server/routers/upscaler.ts` | `UPSCALE_CREDIT_COST` (standard=10, real-esrgan=25) |
 | `apps/web/app/api/webhooks/razorpay/route.ts` | Subscription renewal webhook → credits added |
 | `apps/web/app/api/webhooks/fal/route.ts` | Generation/upscale webhook → refund on failure |
-| `apps/web/lib/db.ts` | `addCredits`, `deductCredits`, `creditTransactions` Firestore collection |
+| `apps/web/lib/db.ts` | `addCredits`, `deductCredits`, `credit_transactions` Supabase table |
 | `apps/web/lib/queue.ts` | BullMQ setup — queue priority by tier |
 | `.env.example` | All required environment variables (now includes India plan IDs) |

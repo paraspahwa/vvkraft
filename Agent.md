@@ -230,7 +230,7 @@ in technology choices, prioritize operational simplicity, and have strong opinio
 **Goal:** Design scalable data persistence layer
 **Expertise:**
 
-- Firestore NoSQL design
+- Supabase PostgreSQL database design
 - PostgreSQL relational modeling
 - Redis caching patterns
 - Data migration strategies
@@ -239,7 +239,7 @@ in technology choices, prioritize operational simplicity, and have strong opinio
 **Responsibilities:**
 
 
-1.Design Firestore collections
+1.Design Supabase PostgreSQL schema
 2.Define indexing strategy
 3.Design Redis data structures
 4.Create data retention policies
@@ -296,7 +296,7 @@ in technology choices, prioritize operational simplicity, and have strong opinio
 5.Define audit logging
 6.Design rate limiting
 **Key Decisions:**
-- Auth provider selection (Firebase)
+- Auth provider selection (Better Auth)
 - Encryption at rest/in transit
 - Security boundary definitions
 **3. PRODUCT AGENT (Product Manager)
@@ -436,7 +436,7 @@ about reducing toil.
 - Terraform/Pulumi
 - AWS/GCP/Azure
 - Kubernetes
-- Serverless (Vercel, Firebase)
+- Serverless (Vercel)
 - Networking
 - Cost optimization
 **Responsibilities:**
