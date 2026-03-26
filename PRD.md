@@ -221,7 +221,7 @@ AUTH-003 Apple Sign-In (mobile)
 AUTH-004 Anonymous auth (limited preview)
 AUTH-005 JWT token refresh
 ```
-**Tech:** Firebase Authentication
+**Tech:** Better Auth
 
 **4.3.2 Credit System**
 
@@ -311,7 +311,7 @@ Camera Integration Expo Camera SDK - instant capture-to-video
 Photo Library Expo Image Picker - multi-select up to 10 images
 Background Upload expo-background-upload [^25 ] - upload while app backgrounded
 Video Caching expo-video with LRU cache [^24 ] - offline viewing
-Push Notifications Firebase Cloud Messaging - generation complete/failed
+Push Notifications Not yet implemented
 Deep Linking Expo Linking - shared video opens in app
 ```
 **4.5.2 Mobile-Specific UI**
@@ -360,7 +360,7 @@ Deep Linking Expo Linking - shared video opens in app
 │ │ │
 │ ▼ │
 │ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ BACKEND (Next.js API Routes + Firebase) │ │
+│ │ BACKEND (Next.js API Routes + Better Auth) │ │
 │ │ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │ │
 │ │ │ REST API │ │ Webhooks │ │ Queue Management │ │ │
 │ │ │ (tRPC) │ │ (Fal.ai) │ │ (BullMQ/Redis) │ │ │
@@ -382,7 +382,7 @@ Deep Linking Expo Linking - shared video opens in app
 │ ▼ │
 │ ┌─────────────────────────────────────────────────────────────┐ │
 │ │ STORAGE & CDN │ │
-│ │ Cloudflare R2 ($0.015/GB) + Cloudflare Stream (adaptive) │ │
+│ │ Backblaze B2 + Cloudflare Stream (adaptive)               │ │
 │ └─────────────────────────────────────────────────────────────┘ │
 │ │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -419,9 +419,9 @@ Runtime Node.js 20 Server environment
 Framework Next.js API Routes Serverless functions
 API Layer tRPC Type-safe APIs
 Queue BullMQ + Redis Job processing
-Auth Firebase Auth User authentication
-Database Cloud Firestore NoSQL document store
-Storage Cloudflare R2 Video file storage
+Auth Better Auth User authentication
+Database Supabase PostgreSQL Relational database
+Storage Backblaze B2 Video file storage
 ```
 
 ```
@@ -441,7 +441,7 @@ Caching In-memory + Redis Prompt-to-video hash caching
 **5.3 Database Schema**
 
 ```
-// Firestore Collections
+// Database tables (Supabase PostgreSQL)
 ```
 ```
 interfaceUser {
@@ -690,7 +690,7 @@ Video Playback Start <2s expo-video metrics
 - Automatic failover to backup AI providers
 - Retry logic: 3 attempts with exponential backoff
 - Circuit breaker pattern for API failures
-- Data backup: Daily Firestore exports to GCS
+- Data backup: Supabase automated backups
 
 **6.4 Security**
 
@@ -719,8 +719,8 @@ Video Playback Start <2s expo-video metrics
 
 ```
 Week Deliverables
-1 Project setup, design system, Firebase config
-2 Auth, basic T2V with LongCat 480p, credit
+1 Project setup, design system, Better Auth + Supabase config
+2 Auth (Better Auth), basic T2V with LongCat 480p, credit
 system
 3 Gallery, history, Stripe integration
 4 Landing page, marketing site, launch prep
@@ -988,7 +988,7 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 - **LoRA** : Low-Rank Adaptation (fine-tuning method)
 - **Fal.ai** : Primary AI API provider
 - **Expo** : React Native development platform
-- **R2** : Cloudflare object storage (S3-compatible)
+- **B2** : Backblaze B2 object storage (S3-compatible)
 
 **10.3 Related Documents**
 
@@ -1025,7 +1025,7 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 |---|---|---|
 | PCD-001 | Display Revenue per user (INR + USD) | INR subscription revenue from tier; USD equivalent at fixed exchange rate |
 | PCD-002 | Display GPU cost per user (USD) | Computed from actual render time × GPU cost per second |
-| PCD-003 | Display videos generated per user per billing cycle | Count from Firestore `generations` collection |
+| PCD-003 | Display videos generated per user per billing cycle | Count from `generations` database table |
 | PCD-004 | Display retry rate per user | Failed scenes / total scenes ratio |
 | PCD-005 | Display GPU usage in seconds | Sum of (durationSeconds × 3 render overhead) per generation |
 | PCD-006 | Auto-downgrade when cost > revenue | Python `cost_optimizer.py` reads `adminDowngraded` flag; reduces resolution, FPS, and retry limit |
@@ -1084,7 +1084,7 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 | ASG-002 | Detect content style from keywords (Fitness, Crypto, Anime, Food, Travel, Creative) |
 | ASG-003 | Generate N scenes (1–10, default 3) with visual description, caption, duration, music mood |
 | ASG-004 | Recommend appropriate AI model per detected style |
-| ASG-005 | Persist script to Firestore `generatedScripts` collection |
+| ASG-005 | Persist script to `generatedScripts` database table |
 | ASG-006 | Allow listing previous scripts |
 | ASG-007 | (Future) Replace keyword detection with LLM (GPT-4o-mini / Gemini) |
 
@@ -1098,7 +1098,7 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 
 | Target | Implementation |
 |---|---|
-| `local` | Signed R2 URL (expires 1 hour), `Content-Disposition: attachment` |
+| `local` | Signed B2 URL (expires 1 hour), `Content-Disposition: attachment` |
 | `youtube_shorts` | Async job (pending OAuth integration with YouTube Data API v3) |
 | `instagram_reels` | Async job (pending OAuth integration with Instagram Graph API) |
 | `tiktok` | Async job (pending OAuth integration with TikTok API) |
@@ -1108,7 +1108,7 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 | ID | Requirement |
 |---|---|
 | EXP-001 | Local download available immediately for all completed videos |
-| EXP-002 | Social export creates async `exportJobs` Firestore record |
+| EXP-002 | Social export creates async `exportJobs` database record |
 | EXP-003 | Poll endpoint to check export job status |
 | EXP-004 | Only completed videos can be exported |
 | EXP-005 | Export jobs scoped to the owning user |
