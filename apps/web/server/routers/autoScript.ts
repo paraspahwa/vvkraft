@@ -12,8 +12,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { autoScriptRequestSchema } from "@videoforge/shared";
 import type { GeneratedScript, ScriptScene } from "@videoforge/shared";
-import { adminDb } from "../../lib/firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { supabase } from "../../lib/supabase";
 
 // ── Keyword → scene style mapping ────────────────────────────────────────────
 
@@ -232,11 +231,23 @@ export const autoScriptRouter = router({
         createdAt: new Date(),
       };
 
-      // Persist to Firestore for later retrieval
-      const ref = await adminDb.collection("generatedScripts").add({
-        ...script,
-        createdAt: Timestamp.now(),
-      });
+      // Persist to Supabase for later retrieval
+      const { data: ref, error } = await supabase
+        .from("generated_scripts")
+        .insert({
+          user_id: userId,
+          user_intent: script.userIntent,
+          style: script.style,
+          aspect_ratio: script.aspectRatio,
+          scenes: script.scenes,
+          title: script.title,
+          total_duration_seconds: script.totalDurationSeconds,
+          recommended_model: script.recommendedModel,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw new Error(error.message);
 
       return { id: ref.id, ...script };
     }),
@@ -245,17 +256,26 @@ export const autoScriptRouter = router({
   list: protectedProcedure
     .input(z.object({ limit: z.number().int().min(1).max(20).default(10) }))
     .query(async ({ ctx, input }) => {
-      const snap = await adminDb
-        .collection("generatedScripts")
-        .where("userId", "==", ctx.userId)
-        .orderBy("createdAt", "desc")
-        .limit(input.limit)
-        .get();
+      const { data, error } = await supabase
+        .from("generated_scripts")
+        .select("*")
+        .eq("user_id", ctx.userId)
+        .order("created_at", { ascending: false })
+        .limit(input.limit);
 
-      return snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: (doc.data()["createdAt"] as { toDate(): Date }).toDate(),
+      if (error) throw new Error(error.message);
+
+      return (data ?? []).map((row) => ({
+        id: row["id"],
+        userId: row["user_id"],
+        userIntent: row["user_intent"],
+        style: row["style"],
+        aspectRatio: row["aspect_ratio"],
+        scenes: row["scenes"],
+        title: row["title"],
+        totalDurationSeconds: row["total_duration_seconds"],
+        recommendedModel: row["recommended_model"],
+        createdAt: new Date(row["created_at"]),
       }));
     }),
 });

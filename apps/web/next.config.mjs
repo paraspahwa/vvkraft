@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@videoforge/ui", "@videoforge/shared"],
-  serverExternalPackages: ["firebase-admin", "bullmq", "ioredis"],
+  serverExternalPackages: ["pg", "bullmq", "ioredis"],
   images: {
     remotePatterns: [
       {
@@ -10,7 +10,7 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "**.r2.dev",
+        hostname: "**.backblazeb2.com",
       },
       {
         protocol: "https",

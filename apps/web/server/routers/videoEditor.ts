@@ -202,7 +202,7 @@ export const videoEditorRouter = router({
 
       const r2Key = buildEditorInputKey(ctx.userId, input.projectId, input.clipId);
       const uploadUrl = await getPresignedUploadUrl(r2Key, input.contentType, 900); // 15 min TTL
-      const publicUrl = `${process.env.R2_PUBLIC_URL ?? ""}/${r2Key}`;
+      const publicUrl = `${process.env.B2_PUBLIC_URL ?? ""}/${r2Key}`;
 
       return { uploadUrl, r2Key, publicUrl };
     }),

@@ -10,14 +10,14 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { firebaseUser, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !firebaseUser) {
+    if (!loading && !user) {
       router.push("/auth/login");
     }
-  }, [firebaseUser, loading, router]);
+  }, [user, loading, router]);
 
   if (loading) {
     return (
@@ -30,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
-  if (!firebaseUser) {
+  if (!user) {
     return (
       <div className="flex h-screen items-center justify-center bg-primary">
         <div className="flex flex-col items-center gap-4">

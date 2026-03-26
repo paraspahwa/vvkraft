@@ -53,7 +53,7 @@ export const upscalerRouter = router({
 
       const uploadUrl = await getPresignedUploadUrl(r2Key, "video/mp4", 900); // 15 min TTL
 
-      const publicUrl = `${process.env.R2_PUBLIC_URL ?? ""}/${r2Key}`;
+      const publicUrl = `${process.env.B2_PUBLIC_URL ?? ""}/${r2Key}`;
 
       return { uploadUrl, r2Key, publicUrl };
     }),

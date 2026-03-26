@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const msg = this.state.error?.message ?? "";
       const isConfigError =
-        msg.includes("Firebase is not initialized") ||
+        msg.includes("auth") ||
         msg.includes("useAuth must be used within AuthProvider");
 
       return (

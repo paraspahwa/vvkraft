@@ -1,77 +1,57 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut,
-  type User as FirebaseUser,
-} from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { createContext, useContext, type ReactNode } from "react";
+import { authClient } from "@/lib/auth-client";
+
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+}
 
 interface AuthContextValue {
-  firebaseUser: FirebaseUser | null;
+  user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  getIdToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const googleProvider = new GoogleAuthProvider();
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    try {
-      unsubscribe = onAuthStateChanged(auth, (user) => {
-        setFirebaseUser(user);
-        setLoading(false);
-      });
-    } catch (err) {
-      // Firebase is not configured — stop loading so routes can redirect properly
-      console.warn(
-        "[AuthProvider] Firebase auth is not initialized. Authentication will not work.",
-        err instanceof Error ? err.message : err
-      );
-      setLoading(false);
-    }
-    return () => unsubscribe?.();
-  }, []);
+  const { data: session, isPending } = authClient.useSession();
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const { error } = await authClient.signIn.email({ email, password });
+    if (error) throw new Error(error.message ?? "Sign in failed");
   };
 
   const signUp = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    const { error } = await authClient.signUp.email({ email, password, name: "" });
+    if (error) throw new Error(error.message ?? "Sign up failed");
   };
 
   const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    await authClient.signIn.social({ provider: "google" });
   };
 
   const logout = async () => {
-    await signOut(auth);
-  };
-
-  const getIdToken = async (): Promise<string | null> => {
-    if (!firebaseUser) return null;
-    return firebaseUser.getIdToken();
+    await authClient.signOut();
   };
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, loading, signIn, signUp, signInWithGoogle, logout, getIdToken }}
+      value={{
+        user: session?.user ?? null,
+        loading: isPending,
+        signIn,
+        signUp,
+        signInWithGoogle,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

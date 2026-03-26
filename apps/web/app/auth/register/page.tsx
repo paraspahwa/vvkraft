@@ -49,7 +49,7 @@ export default function RegisterPage() {
       router.push("/dashboard");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Registration failed";
-      setAuthError(message.includes("email-already-in-use") ? "An account with this email already exists" : message);
+      setAuthError(message.includes("already exists") ? "An account with this email already exists" : message);
     }
   };
 
