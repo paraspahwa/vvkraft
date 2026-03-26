@@ -14,7 +14,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-2-EF4444?logo=turborepo&logoColor=white)](https://turbo.build/)
-[![Firebase](https://img.shields.io/badge/Firebase-10-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366F1.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -57,7 +57,7 @@
   - [API Layer (tRPC)](#api-layer-trpc)
   - [AI Video Generation Pipeline](#ai-video-generation-pipeline)
   - [Billing (Razorpay)](#billing-razorpay)
-  - [Storage (Cloudflare R2)](#storage-cloudflare-r2)
+  - [Storage (Backblaze B2)](#storage-backblaze-b2)
   - [Queue (BullMQ + Redis)](#queue-bullmq--redis)
 - [India Pricing](#india-pricing)
 - [Implementation Status](#implementation-status)
@@ -90,7 +90,7 @@
 - 🌐 **Web-first architecture** — full-featured Next.js web application with Node.js backend APIs
 - 💳 **Flexible billing** — monthly/yearly subscriptions *and* one-time credit top-ups, powered by Razorpay
 - ⚡ **Priority queue** — Studio and Pro subscribers jump the queue automatically via BullMQ priorities
-- 🔒 **Secure by default** — Firebase Auth tokens verified server-side on every tRPC request; Razorpay webhooks verified with HMAC-SHA256
+- 🔒 **Secure by default** — Better Auth sessions verified via cookie on every tRPC request; Razorpay webhooks verified with HMAC-SHA256
 
 ---
 
@@ -144,11 +144,11 @@ Type a prompt → Select model & settings → Hit Generate
 | **Backend Runtime** | Node.js 20 + Next.js server runtime |
 | **Language** | TypeScript 5.3 (strict, across all packages) |
 | **API** | [tRPC](https://trpc.io/) v11 + [TanStack Query](https://tanstack.com/query) v5 |
-| **Auth** | [Firebase Auth](https://firebase.google.com/) (email/password) |
-| **Database** | [Firestore](https://firebase.google.com/docs/firestore) (users, generations, characters, credit transactions) |
+| **Auth** | [Better Auth](https://www.better-auth.com/) (email/password + Google OAuth, cookie-based sessions) |
+| **Database** | [Supabase](https://supabase.com/) PostgreSQL (users, generations, characters, credit transactions) |
 | **AI / Video** | [Fal.ai](https://fal.ai/) (Kling v3 Pro, Kling O3, WAN 2.2/2.6, Longcat, LTXV, Krea WAN, Pixverse, Seedance, HunyuanVideo, and 30+ more models) |
 | **Billing** | [Razorpay](https://razorpay.com/) (subscriptions + one-time purchases) |
-| **Storage** | [Cloudflare R2](https://www.cloudflare.com/products/r2/) (videos + thumbnails + character images) |
+| **Storage** | [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) S3-compatible (videos + thumbnails + character images) |
 | **Queue** | [BullMQ](https://bullmq.io/) + [Redis](https://redis.io/) (ioredis) |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com/) 3 + custom design system |
 | **Forms** | [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/) |
@@ -185,7 +185,7 @@ videoforge/
 │   │   │           ├── fal/          # Fal.ai video completion webhook
 │   │   │           └── razorpay/     # Razorpay payment webhook
 │   │   ├── components/
-│   │   │   ├── auth/                 # Firebase auth provider
+│   │   │   ├── auth/                 # Better Auth provider
 │   │   │   ├── billing/              # PricingCard with Razorpay popup
 │   │   │   ├── gallery/              # VideoCard component
 │   │   │   ├── generation/           # GenerationForm + StatusCard + LongVideoForm
@@ -205,14 +205,18 @@ videoforge/
 │   │   │       ├── community.ts      # Community trending feed + remix
 │   │   │       └── export.ts         # Export to YouTube/Instagram/TikTok/local
 │   │   ├── lib/
-│   │   │   ├── db.ts                 # Firestore operations
+│   │   │   ├── db.ts                 # Supabase PostgreSQL operations
 │   │   │   ├── fal.ts                # Fal.ai client + types
-│   │   │   ├── firebase.ts           # Firebase client SDK
-│   │   │   ├── firebase-admin.ts     # Firebase Admin SDK
+│   │   │   ├── firebase.ts           # Firebase client SDK (stub only — replaced by Better Auth)
+│   │   │   ├── firebase-admin.ts     # Firebase Admin SDK (legacy — no longer used for auth)
+│   │   │   ├── auth.ts               # Better Auth server config
+│   │   │   ├── auth-client.ts        # Better Auth client
+│   │   │   ├── auth-context.ts       # Better Auth React context
+│   │   │   ├── supabase.ts           # Supabase client (service role)
 │   │   │   ├── model-router.ts       # Tier → model mapping + credit calc
 │   │   │   ├── pricing.ts            # Razorpay plan IDs + pricing config
 │   │   │   ├── queue.ts              # BullMQ queue definitions
-│   │   │   ├── r2.ts                 # Cloudflare R2 helpers (incl. presigned download)
+│   │   │   ├── r2.ts                 # Backblaze B2 storage helpers (incl. presigned download)
 │   │   │   ├── razorpay-client.ts    # Client-side Razorpay script loader
 │   │   │   ├── redis.ts              # ioredis singleton
 │   │   │   └── templates.ts          # Video template catalogue (9 templates)
@@ -230,7 +234,7 @@ videoforge/
 │       │       ├── gallery.tsx       # Gallery screen (infinite scroll)
 │       │       └── profile.tsx       # Profile + stats + sign out
 │       └── lib/
-│           ├── firebase.ts           # Firebase client for mobile
+│           ├── auth-client.ts        # Better Auth client for mobile
 │           └── trpc.ts               # tRPC client for mobile
 │
 └── packages/
@@ -323,25 +327,24 @@ videoforge/
 - **Node.js** ≥ 20
 - **npm** ≥ 10 (workspaces support)
 - **Redis** running locally or a hosted Redis URL
-- Accounts: Firebase, Fal.ai, Razorpay, Cloudflare R2
+- Accounts: Supabase, Fal.ai, Razorpay, Backblaze B2
 
 ### Environment Variables
 
 #### `apps/web/.env.local`
 
 ```env
-# Firebase (Client)
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-NEXT_PUBLIC_FIREBASE_APP_ID=
+# Better Auth
+BETTER_AUTH_SECRET=
+DATABASE_URL=postgresql://...
 
-# Firebase Admin (Server)
-FIREBASE_ADMIN_PROJECT_ID=
-FIREBASE_ADMIN_CLIENT_EMAIL=
-FIREBASE_ADMIN_PRIVATE_KEY=
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Google OAuth (Better Auth)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 
 # Fal.ai
 FAL_KEY=
@@ -357,16 +360,34 @@ RAZORPAY_PLAN_PRO_MONTHLY=
 RAZORPAY_PLAN_PRO_YEARLY=
 RAZORPAY_PLAN_STUDIO_MONTHLY=
 RAZORPAY_PLAN_STUDIO_YEARLY=
+RAZORPAY_PLAN_CREATOR_MONTHLY_INR=
+RAZORPAY_PLAN_CREATOR_YEARLY_INR=
+RAZORPAY_PLAN_PRO_MONTHLY_INR=
+RAZORPAY_PLAN_PRO_YEARLY_INR=
+RAZORPAY_PLAN_STUDIO_MONTHLY_INR=
+RAZORPAY_PLAN_STUDIO_YEARLY_INR=
 
 # Redis
 REDIS_URL=redis://localhost:6379
 
-# Cloudflare R2
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-R2_PUBLIC_URL=
+# Backblaze B2 (S3-compatible)
+B2_REGION=us-west-004
+B2_APPLICATION_KEY_ID=
+B2_APPLICATION_KEY=
+B2_BUCKET_NAME=videoforge
+B2_PUBLIC_URL=
+
+# RunPod (GPU worker)
+RUNPOD_API_KEY=
+RUNPOD_ENDPOINT_3060=
+RUNPOD_ENDPOINT_4090=
+RUNPOD_ENDPOINT_A100=
+
+# Celery (GPU worker service)
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+WEBHOOK_BASE_URL=http://localhost:3000
+WEBHOOK_SECRET=
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -375,11 +396,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 #### `apps/mobile/.env.local`
 
 ```env
-EXPO_PUBLIC_FIREBASE_API_KEY=
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=
-EXPO_PUBLIC_FIREBASE_APP_ID=
-
 EXPO_PUBLIC_API_URL=https://your-app.vercel.app
 ```
 
@@ -482,10 +498,6 @@ If `apps/mobile/.env.example` exists in the repo, copy it; otherwise create `app
 Populate `apps/mobile/.env.local` with:
 
 ```env
-EXPO_PUBLIC_FIREBASE_API_KEY=
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=
-EXPO_PUBLIC_FIREBASE_APP_ID=
 EXPO_PUBLIC_API_URL=http://localhost:3000
 ```
 
@@ -708,7 +720,7 @@ Scene0  Scene1  Scene2
  10s    10s    10s
  (parallel RunPod jobs)
         │
-   stitch_scenes() ──► FFmpeg concat → final.mp4 → R2
+   stitch_scenes() ──► FFmpeg concat → final.mp4 → B2
 ```
 
 **Why scenes?**
@@ -788,9 +800,9 @@ Three levels of caching reduce GPU spend and latency:
 |---|---|---|
 | **Prompt cache** | Redis key of normalized prompt → generation ID | 1 hour |
 | **Embedding cache** | Prompt embeddings for semantic similarity matching | 24 hours |
-| **Scene cache** | Rendered scene R2 keys for identical prompt+duration combos | 7 days |
+| **Scene cache** | Rendered scene B2 keys for identical prompt+duration combos | 7 days |
 
-A cache hit on a scene skips the RunPod job entirely, returning the existing R2 URL. Cost is reported as `cached: true` with `total_cost_usd: 0` in the `CostBreakdown`.
+A cache hit on a scene skips the RunPod job entirely, returning the existing B2 URL. Cost is reported as `cached: true` with `total_cost_usd: 0` in the `CostBreakdown`.
 
 ---
 
@@ -824,18 +836,18 @@ appRouter
 ├── character
 │   ├── list            — user's characters
 │   ├── create          — create character with reference image
-│   └── delete          — delete + clean up R2 assets
+│   └── delete          — delete + clean up B2 assets
 └── videoEditor  [paid: creator / pro / studio only]
     ├── create          — new project (blank, auto-named)
     ├── getById         — load a project with all clips + overlays
     ├── list            — paginated project list (newest first)
     ├── save            — persist full edit state (clips, overlays, audio)
-    ├── getUploadUrl    — presigned R2 PUT URL for user-uploaded clips
+    ├── getUploadUrl    — presigned B2 PUT URL for user-uploaded clips
     ├── export          — trigger export; returns signed download URL when ready
-    └── delete          — delete a project from Firestore
+    └── delete          — delete a project from Supabase
 ```
 
-Authentication uses **Firebase ID tokens** passed as `Authorization: Bearer <token>` headers. The tRPC context verifies the token via Firebase Admin SDK and loads the user from Firestore on every request.
+Authentication uses **Better Auth cookie-based sessions**. The tRPC context reads the session from the cookie (no `Authorization` header needed) and loads the user on every request.
 
 ### AI Video Generation Pipeline
 
@@ -845,8 +857,8 @@ User submits prompt
       ▼
 tRPC generation.create
   → routeModel()              # select model based on tier + resolution
-  → deductCredits()           # atomic Firestore transaction
-  → createGeneration()        # Firestore record (status: "pending")
+  → deductCredits()           # atomic Supabase RPC (deduct_credits())
+  → createGeneration()        # Supabase record (status: "pending")
   → enqueueVideoGeneration()  # BullMQ job with tier priority
       │
       ▼
@@ -862,7 +874,7 @@ tRPC generation.create
       │
       ▼
 POST /api/webhooks/runpod
-  → scene COMPLETED  → upload to R2, mark scene done
+  → scene COMPLETED  → upload to B2, mark scene done
   → all scenes done  → stitch → mark generation COMPLETED
   → scene FAILED     → retry that scene only (smart retry)
 ```
@@ -917,13 +929,13 @@ VideoForge uses **Razorpay's client-side popup** (not a hosted checkout redirect
 **One-time credit purchase:**
 1. Client calls `billing.createCreditCheckout` → server creates Razorpay order, returns `orderId + amount + keyId`
 2. Client opens popup → user pays → handler fires
-3. Client calls `billing.verifyCreditPayment` → server verifies signature, adds credits to Firestore
+3. Client calls `billing.verifyCreditPayment` → server verifies signature, adds credits to Supabase
 
 **Webhook** at `/api/webhooks/razorpay` handles async events (`subscription.charged`, `subscription.cancelled`, `payment.failed`) with `x-razorpay-signature` HMAC verification.
 
-### Storage (Cloudflare R2)
+### Storage (Backblaze B2)
 
-All user media is stored in Cloudflare R2 with a structured key scheme:
+All user media is stored in Backblaze B2 (S3-compatible) with a structured key scheme:
 
 ```
 videos/{userId}/{generationId}/output.mp4
@@ -931,7 +943,7 @@ videos/{userId}/{generationId}/thumbnail.jpg
 characters/{userId}/{characterId}/reference.jpg
 ```
 
-Helpers in `lib/r2.ts`: `uploadToR2`, `uploadFromUrl`, `deleteFromR2`, `getPresignedUploadUrl`, `buildVideoKey`, `buildThumbnailKey`, `buildCharacterKey`.
+Helpers in `lib/r2.ts` (kept as `r2.ts` for historical reasons): `uploadToR2`, `uploadFromUrl`, `deleteFromR2`, `getPresignedUploadUrl`, `buildVideoKey`, `buildThumbnailKey`, `buildCharacterKey`.
 
 ### Queue (BullMQ + Redis)
 
@@ -962,20 +974,20 @@ The Video Editor (`/editor`) is a paid-only feature (Creator, Pro, and Studio pl
 ```
 Client (Web / Mobile)
   │
-  ├── GET  videoEditor.list          — load project list from Firestore `videoEditorProjects`
-  ├── POST videoEditor.create        — create new project document
-  ├── POST videoEditor.getUploadUrl  — get presigned R2 PUT URL for a new clip
-  │         └── Client PUTs video directly to R2 (large file, no proxy)
+  ├── GET  videoEditor.list          — load project list from Supabase `video_editor_projects`
+  ├── POST videoEditor.create        — create new project record
+  ├── POST videoEditor.getUploadUrl  — get presigned B2 PUT URL for a new clip
+  │         └── Client PUTs video directly to B2 (large file, no proxy)
   ├── POST videoEditor.save          — persist clips[], textOverlays[], audio settings
   └── POST videoEditor.export        — mark project "exporting"; background worker renders
             └── Background FFmpeg worker
                   ├── concat clips (respecting trimStart / trimEnd)
                   ├── burn text overlays at correct timestamps
                   ├── mix background audio at configured volume
-                  └── upload output to R2 → update project status → "exported"
+                  └── upload output to B2 → update project status → "exported"
 ```
 
-#### Data Model (`videoEditorProjects` Firestore collection)
+#### Data Model (`video_editor_projects` Supabase table)
 
 | Field | Type | Description |
 |---|---|---|
@@ -987,10 +999,10 @@ Client (Web / Mobile)
 | `backgroundAudioVolume` | number (0–1) | Mix volume |
 | `status` | `draft \| exporting \| exported \| failed` | Project lifecycle |
 | `exportedVideoUrl` | string \| null | Final rendered video URL |
-| `exportedR2Key` | string \| null | R2 key for the export |
+| `exported_r2_key` | string \| null | B2 key for the export |
 | `totalDurationSeconds` | number | Sum of trimmed clip durations |
 
-#### R2 Key Layout
+#### B2 Key Layout
 
 ```
 editor/<userId>/<projectId>/<clipId>/input.mp4   ← user-uploaded clips
@@ -1000,12 +1012,12 @@ editor/<userId>/<projectId>/export.mp4           ← rendered output
 #### Web Editor Features
 
 - **Clip timeline** — horizontal scroll view with drag-to-reorder (left/right arrows)
-- **Clip sources** — add from AI gallery or upload own MP4/WebM/MOV (direct R2 PUT, up to 2 GB)
+- **Clip sources** — add from AI gallery or upload own MP4/WebM/MOV (direct B2 PUT, up to 2 GB)
 - **Trim panel** — per-clip start/end sliders, live effective-duration display
 - **Text overlays** — add/edit/delete overlays; configure text, start/end time, position (top/center/bottom), font size, colour
 - **Background audio** — paste any MP3/AAC URL; set volume 0–100%
 - **Preview player** — inline `<video>` that sequences through clips; overlay preview rendered on canvas
-- **Auto-save** — save button persists to Firestore; project state survives refresh
+- **Auto-save** — save button persists to Supabase; project state survives refresh
 - **Export** — triggers background render; download button appears when export is ready
 
 #### Mobile Editor Features
@@ -1064,26 +1076,26 @@ These are applied silently — users are never told about them:
 
 #### Web App (`apps/web`)
 - [x] **Landing page** — suite home UI: sticky nav with category tabs, hero banner row (3 gradient cards), 10-tool suite grid, CTA strip, footer (inspired by OpenArt suite home)
-- [x] **Auth pages** — login + register with Firebase email/password
+- [x] **Auth pages** — login + register with Better Auth (email/password + Google OAuth)
 - [x] **Dashboard** — stats (credits, total videos, this-month, plan), quick actions, upgrade banner, recent generations
 - [x] **Generate page** — prompt form, negative prompt, duration, aspect ratio, resolution, model selection from full catalog, real-time status polling
 - [x] **Long Video page** (`/generate/long-video`) — 30s / 60s / 120s duration presets, long-form model picker, tier-aware availability
 - [x] **Gallery page** — infinite scroll, status filter (all/completed/processing/failed), load-more pagination
-- [x] **Video Editor page** (`/editor`) — paid-only (Creator / Pro / Studio); multi-clip timeline; trim controls; text overlays; background audio; gallery picker; own-video upload via presigned R2 URL; auto-save to Firestore; export to MP4
+- [x] **Video Editor page** (`/editor`) — paid-only (Creator / Pro / Studio); multi-clip timeline; trim controls; text overlays; background audio; gallery picker; own-video upload via presigned B2 URL; auto-save to Supabase; export to MP4
 - [x] **Pricing page** — 4 plan cards with monthly/yearly toggle, save-20% badge, 4 credit top-up packs, FAQ
 - [x] **Settings page** — profile update form, current plan display, cancel subscription button
 - [x] **tRPC API** — generation, user, billing, character, videoEditor routers (fully type-safe)
-- [x] **Firebase integration** — client SDK (auth) + Admin SDK (Firestore, verify tokens)
-- [x] **Fal.ai webhook** — `IN_PROGRESS` → `COMPLETED` → R2 upload → `FAILED` + credit refund
+- [x] **Better Auth integration** — client SDK (auth, cookie sessions) + Supabase PostgreSQL (all data operations)
+- [x] **Fal.ai webhook** — `IN_PROGRESS` → `COMPLETED` → B2 upload → `FAILED` + credit refund
 - [x] **Razorpay billing** — subscription checkout, one-time credit purchase, HMAC verification, webhook handler
-- [x] **Cloudflare R2** — upload, download, delete, presigned URL helpers (including editor input/output keys)
+- [x] **Backblaze B2** — upload, download, delete, presigned URL helpers (including editor input/output keys)
 - [x] **Redis + BullMQ** — queue definitions, job enqueue with tier priority
 - [x] **Model router** — tier-aware model selection, resolution/duration clamping, credit cost calculation; supports 40+ models across Longcat, LTXV, WAN, Kling, Pixverse, Seedance, HeyGen, Cosmos, and more
 - [x] **Razorpay client utility** — lazy script loader (`lib/razorpay-client.ts`)
 
 #### Mobile App (`apps/mobile`)
 - [x] **Root layout** — tRPC client + TanStack Query provider
-- [x] **Auth screen** — email/password login + register, Firebase Auth
+- [x] **Auth screen** — email/password login + register, Better Auth
 - [x] **Generate screen** — prompt input, duration picker, aspect ratio selector, real-time generation status
 - [x] **Gallery screen** — 2-column grid, infinite scroll, pull-to-refresh, thumbnail display, status dots
 - [x] **Profile screen** — avatar, tier badge, stats grid (credits, total, this-month, max duration), plan features, sign out
@@ -1098,7 +1110,7 @@ These are applied silently — users are never told about them:
 | **BullMQ worker process** | `apps/web/worker/video-generation.ts` — consumes jobs, calls `fal.queue.submit()` per model, stores `falRequestId`, falls back to credit refund on submission failure. Entry point: `apps/web/worker/index.ts`. Start with `npm run worker`. |
 | **Video playback (web)** | `GenerationStatusCard` embeds an inline `<video>` element with mute toggle when status = `completed`. `VideoCard` already had hover-to-play. |
 | **Video playback (mobile)** | Full-screen `expo-av` video player at `apps/mobile/app/video/[id].tsx` with play/pause, progress bar, and download. Gallery now navigates to this screen on tap. |
-| **Character image upload** | `character.getUploadUrl` tRPC procedure returns a presigned R2 URL. `CreateCharacterDialog` uploads directly to R2 via `PUT`, then creates the character record with the public URL. |
+| **Character image upload** | `character.getUploadUrl` tRPC procedure returns a presigned B2 URL. `CreateCharacterDialog` uploads directly to B2 via `PUT`, then creates the character record with the public URL. |
 | **Character management UI (web)** | `/characters` page with card grid, `CreateCharacterDialog` (image file picker + upload + form), `CharacterCard` with hover-delete confirm. Added to sidebar nav. |
 | **Mobile billing screen** | `apps/mobile/app/(tabs)/billing.tsx` — shows plan, credits, plan features, upgrade options and credit packs (all linking to web pricing page via `Linking.openURL`). Added as 4th tab. |
 | **Long-form video generation** | `/generate/long-video` page with `LongVideoForm` component; `generation.createLongVideo` and `generation.estimateLongVideoCost` tRPC procedures; tier-aware routing via `routeLongVideo()`; duration presets of 30s, 60s, 120s. Creator: up to 60s; Pro/Studio: up to 120s. |
@@ -1110,7 +1122,7 @@ These are applied silently — users are never told about them:
 
 | Item | Details |
 |---|---|
-| **Google / social OAuth** | Only email/password auth is implemented. Firebase supports Google, Apple, GitHub, etc. — none are wired up. |
+| **Google / social OAuth** | Only email/password auth is implemented. Better Auth supports Google OAuth — the provider is configured but the UI flow is not fully wired up. |
 
 #### 🟢 Nice-to-Have / Future
 
@@ -1122,7 +1134,7 @@ These are applied silently — users are never told about them:
 | **Push notifications** | `expo-notifications` is not installed. No server-side push trigger on video completion. |
 | **Email notifications** | No transactional email (e.g., Resend, SendGrid) for signup confirmation or video-ready alerts. |
 | **Error monitoring** | No Sentry or similar error tracking integrated. |
-| **Analytics** | No usage analytics (Mixpanel, PostHog, etc.) beyond the basic Firestore counters. |
+| **Analytics** | No usage analytics (Mixpanel, PostHog, etc.) beyond the basic Supabase counters. |
 | **Social OAuth for export** | YouTube / Instagram / TikTok export requires per-platform OAuth flows (pending platform credential setup). |
 
 ---
@@ -1132,15 +1144,15 @@ These are applied silently — users are never told about them:
 | Feature | Router / File | What Was Built |
 |---|---|---|
 | **1-Click Templates** | `templates` tRPC router, `apps/web/lib/templates.ts` | 9 launch-ready templates (Motivational Reel, Gym Workout, Crypto News, Anime Edit, News Explainer, Product Showcase, Travel Reel, Food Reel, Educational Explainer). Each template includes pre-filled prompt, suggested model, tier gating, aspect ratio, and duration. `templates.list`, `templates.getById`, `templates.generate` procedures. |
-| **Auto-Script Generator** | `autoScript` tRPC router | User enters plain-English intent ("make gym video") → system generates a structured script with scene-by-scene visual descriptions, captions, music mood, and recommended model. Keyword → style mapping covers Fitness, Crypto, Anime, Food, Travel, and fallback Creative styles. Scripts persisted to Firestore `generatedScripts` collection. |
-| **Price-Control Dashboard** | `admin` tRPC router | Per-user metrics: Revenue (INR + USD), GPU cost (USD), net margin, videos generated, retry rate, GPU usage seconds, auto-downgrade status. Platform-wide summary: total revenue, total GPU cost, total margin, active users, average retry rate, downgraded user count. Auto-downgrade rule: if `gpuCostUsd > revenueUsd`, user is flagged for quality downgrade. Admin can manually set/clear downgrade flags. Gated behind `studio` tier (replace with Firebase custom claim in production). |
-| **Direct Export** | `export` tRPC router | `local` export: generates a signed R2 download URL (expires in 1 hour) for browser download. `youtube_shorts`, `instagram_reels`, `tiktok`: creates async `exportJobs` Firestore record (status: pending) ready for background OAuth upload worker. `export.create`, `export.getStatus`, `export.list` procedures. |
+| **Auto-Script Generator** | `autoScript` tRPC router | User enters plain-English intent ("make gym video") → system generates a structured script with scene-by-scene visual descriptions, captions, music mood, and recommended model. Keyword → style mapping covers Fitness, Crypto, Anime, Food, Travel, and fallback Creative styles. Scripts persisted to Supabase `generated_scripts` table. |
+| **Price-Control Dashboard** | `admin` tRPC router | Per-user metrics: Revenue (INR + USD), GPU cost (USD), net margin, videos generated, retry rate, GPU usage seconds, auto-downgrade status. Platform-wide summary: total revenue, total GPU cost, total margin, active users, average retry rate, downgraded user count. Auto-downgrade rule: if `gpuCostUsd > revenueUsd`, user is flagged for quality downgrade. Admin can manually set/clear downgrade flags. Gated behind `studio` tier (replace with a custom claim in production). |
+| **Direct Export** | `export` tRPC router | `local` export: generates a signed B2 download URL (expires in 1 hour) for browser download. `youtube_shorts`, `instagram_reels`, `tiktok`: creates async `export_jobs` Supabase record (status: pending) ready for background OAuth upload worker. `export.create`, `export.getStatus`, `export.list` procedures. |
 | **Community Content Loop** | `community` tRPC router | Trending feed (`community.trending`) ordered by likes with cursor pagination. Publish any completed generation (`community.publish`). Like/unlike toggle (`community.like`). Remix: generate a new video seeded from a community post's prompt (`community.remix`). |
 | **Presigned Download URL** | `apps/web/lib/r2.ts` | New `getPresignedDownloadUrl()` helper for generating time-limited download links with `Content-Disposition: attachment` headers. |
 | **Admin middleware** | `apps/web/server/trpc.ts` | `adminProcedure` — enforces `studio` tier for admin-only routes. |
 | **Shared types** | `packages/shared/src/types/index.ts` | `VideoTemplate`, `ScriptScene`, `GeneratedScript`, `ExportTarget`, `ExportJob`, `CommunityVideo`, `RemixRequest`, `AdminUserMetrics`, `PlatformMetrics` |
 | **Shared schemas** | `packages/shared/src/schemas/index.ts` | `templateGenerateSchema`, `autoScriptRequestSchema`, `exportRequestSchema`, `communityRemixSchema`, `templateCategorySchema`, `exportTargetSchema` |
-| **Video Editor (Web + Mobile)** | `videoEditor` tRPC router · `apps/web/app/editor/` · `apps/mobile/app/(tabs)/editor.tsx` | Full-featured video editor for paid users (Creator / Pro / Studio). Features: multi-clip timeline, per-clip trim controls, text overlays with position/font/colour, background audio mixing, gallery picker (add AI-generated videos directly), upload own videos (presigned R2 PUT), auto-save project state to Firestore, export to MP4 via background queue. Free-tier users see a feature list + upgrade CTA. Both web and mobile surfaces implemented. New Firestore collection: `videoEditorProjects`. |
+| **Video Editor (Web + Mobile)** | `videoEditor` tRPC router · `apps/web/app/editor/` · `apps/mobile/app/(tabs)/editor.tsx` | Full-featured video editor for paid users (Creator / Pro / Studio). Features: multi-clip timeline, per-clip trim controls, text overlays with position/font/colour, background audio mixing, gallery picker (add AI-generated videos directly), upload own videos (presigned B2 PUT), auto-save project state to Supabase, export to MP4 via background queue. Free-tier users see a feature list + upgrade CTA. Both web and mobile surfaces implemented. New Supabase table: `video_editor_projects`. |
 
 ---
 
@@ -1152,9 +1164,9 @@ These are applied silently — users are never told about them:
 
 | Priority | Item | Notes |
 |:---:|---|---|
-| 🔴 High | **Google / Social OAuth** | Wire up Firebase Google, Apple, GitHub providers |
+| 🔴 High | **Google / Social OAuth** | Wire up Better Auth Google provider (config exists, UI flow pending) |
 | 🔴 High | **Rate limiting** | IP-based + per-user middleware on tRPC & webhook routes |
-| 🟠 Med | **Video Editor — FFmpeg render worker** | Background worker that processes `videoEditorProjects` in "exporting" state: concat clips, apply trim, burn text overlays, mix audio, output MP4 to R2 |
+| 🟠 Med | **Video Editor — FFmpeg render worker** | Background worker that processes `video_editor_projects` (Supabase) in "exporting" state: concat clips, apply trim, burn text overlays, mix audio, output MP4 to B2 |
 | 🟠 Med | **Template UI page** | `/templates` page with category filter, preview cards, and 1-click launch |
 | 🟠 Med | **Auto-Script UI** | `/generate/script` page with intent input, scene preview, and "Generate from Script" button |
 | 🟠 Med | **Price-Control Dashboard UI** | `/admin/dashboard` page with metrics table, per-user drilldown, and downgrade controls |
@@ -1219,7 +1231,7 @@ We welcome contributions of all sizes! Here's how to get started:
 ### Areas most in need of help
 
 - 🧪 **Tests** — the monorepo has zero tests; Vitest unit tests or Playwright E2E would be a huge win
-- 🔐 **Google/Social OAuth** — straightforward Firebase wiring
+- 🔐 **Google/Social OAuth** — wire up Better Auth Google provider
 - 📧 **Email notifications** — Resend SDK integration
 - 🌐 **Internationalisation** — `next-intl` or similar
 
@@ -1269,10 +1281,11 @@ Razorpay is optimised for the Indian market with support for UPI, Netbanking, an
 <summary><strong>Can I self-host VideoForge?</strong></summary>
 
 Yes. You need:
-- A Firebase project (Auth + Firestore)
+- A [Supabase](https://supabase.com/) project (PostgreSQL database)
+- Better Auth configured (library — no separate account needed; needs `DATABASE_URL` + `BETTER_AUTH_SECRET`)
 - A [Fal.ai](https://fal.ai/) API key
 - A Razorpay account (or swap for Stripe)
-- A Cloudflare R2 bucket (or any S3-compatible storage)
+- A Backblaze B2 bucket (or any S3-compatible storage)
 - Redis (locally or a managed service like Upstash)
 
 See [Getting Started](#getting-started) for the full env-var list and [Deployment](#deployment) for hosting options.
@@ -1322,8 +1335,9 @@ VideoForge is built on the shoulders of giants:
 - [Turborepo](https://turbo.build/) — monorepo build system
 - [tRPC](https://trpc.io/) — end-to-end type-safe API layer
 - [TanStack Query](https://tanstack.com/query) — async state management
-- [Firebase](https://firebase.google.com/) — auth and Firestore database
-- [Cloudflare R2](https://www.cloudflare.com/products/r2/) — zero-egress-cost video storage
+- [Better Auth](https://www.better-auth.com/) — cookie-based authentication
+- [Supabase](https://supabase.com/) — PostgreSQL database
+- [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) — S3-compatible video storage
 - [BullMQ](https://bullmq.io/) — priority job queues
 - [Razorpay](https://razorpay.com/) — billing and payments
 - [Framer Motion](https://www.framer.com/motion/) — animations
