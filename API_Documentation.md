@@ -1,42 +1,7 @@
 # VideoForge API Documentation
 
-## Version 1.0.
-
-## Base URL: https://api.videoforge.ai/v
-
-## Authentication: Bearer Token (JWT)
-
-## Content-Type: application/json
-
-## Table of Contents
-
-## 1.Authentication
-
-## 2.Rate Limits
-
-## 3.Video Generation
-
-## 4.Models
-
-## 5.Characters
-
-## 6.Webhooks
-
-## 7.Errors
-
-## 8.SDKs
-
-## Authentication
-
-## All API requests require authentication using a Bearer token in the Authorization header.
-
-## Obtaining an API Key
-
-## 1.Sign up atvideoforge.ai
-
-## 2.Navigate to Settings → API Keys
-
-## 3.Generate a new key with appropriate permissions
+This file is deprecated.  
+Please use [`API.md`](./API.md), which contains the complete and current API reference for the web-only Next.js + Node.js architecture.
 
 ## Using the API Key
 

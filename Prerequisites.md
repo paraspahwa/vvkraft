@@ -3,6 +3,8 @@
 This document covers everything you need to install and run VideoForge locally or on a remote server.  
 Follow the section that matches your operating system, then complete the [common steps](#4-clone-the-repo--install-dependencies) at the bottom.
 
+> **Update (web-only direction):** VideoForge is now maintained as a **web-only** Next.js + Node.js application. Mobile-specific setup in this file is legacy and optional.
+
 ---
 
 ## Table of Contents

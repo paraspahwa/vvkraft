@@ -11,8 +11,7 @@
 
 ### **Turn text into cinematic videos** — powered by Kling AI, WAN 2.2, and Fal.ai
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Expo](https://img.shields.io/badge/Expo-52-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-2-EF4444?logo=turborepo&logoColor=white)](https://turbo.build/)
 [![Firebase](https://img.shields.io/badge/Firebase-10-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
@@ -31,6 +30,7 @@
 - [Overview](#overview)
 - [Tech Stack](#tech-stack)
 - [Monorepo Structure](#monorepo-structure)
+- [API Reference](#api-reference)
 - [Design System](#design-system)
 - [Features & Subscription Tiers](#features--subscription-tiers)
 - [Getting Started](#getting-started)
@@ -44,8 +44,7 @@
     - [Step 5 — Start Redis](#step-5--start-redis-skip-if-using-cloud-redis)
     - [Step 6 — Start the web app](#step-6--start-the-web-app-terminal-1)
     - [Step 7 — Start the background worker](#step-7--start-the-background-worker-terminal-2)
-    - [Step 8 — Start the mobile app (optional)](#step-8--optional-start-the-mobile-app-terminal-3)
-    - [Docker Compose (alternative)](#docker-compose-alternative-to-steps-57)
+    - [Docker Compose (alternative)](#docker-compose-alternative-to-steps-56)
 - [Deployment](#deployment)
 - [Architecture](#architecture)
   - [Hidden Layers (Competitive Moat)](#hidden-layers-competitive-moat)
@@ -73,6 +72,8 @@
 
 ## Why VideoForge?
 
+> ✅ **Current project direction:** VideoForge is maintained as a **web-only** platform using a **Next.js frontend and Node.js backend** (tRPC + Next.js API routes). Any mobile references below are legacy notes and should be ignored.
+
 | | VideoForge | Traditional tools |
 |---|---|---|
 | **Setup time** | Minutes | Days / weeks |
@@ -80,13 +81,13 @@
 | **Skills needed** | None | Video editing, VFX |
 | **Output quality** | Up to 1080p cinematic | Depends on operator |
 | **Scale** | Unlimited AI generation | Limited by crew / hardware |
-| **Cross-platform** | Web + iOS/Android | Usually desktop-only |
+| **Cross-platform** | Web | Usually desktop-only |
 
 - 🎬 **40+ state-of-the-art models** — Kling v3 Pro, Kling v2.6 Pro, Kling O3, WAN 2.2, WAN 2.6, Longcat, LTXV, Krea WAN, Pixverse v5, Seedance, HunyuanVideo, and more — all in one platform
 - 📹 **Long-form video generation** — generate 30-second, 1-minute, and 2-minute AI videos using models purpose-built for continuous long-form output (Creator tier and above)
-- ✂️ **Video Editor** *(paid plans only)* — full-featured timeline editor: trim clips, merge AI-generated and uploaded videos, add text overlays with custom fonts/positions/colours, layer background audio, then export a polished MP4. Available on web and mobile.
+- ✂️ **Video Editor** *(paid plans only)* — full-featured timeline editor: trim clips, merge AI-generated and uploaded videos, add text overlays with custom fonts/positions/colours, layer background audio, then export a polished MP4.
 - 🧑‍🎨 **Character consistency** — upload a reference image and maintain your character across unlimited videos
-- 📱 **Web + Mobile** — full-featured Next.js web app and native Expo/React Native mobile app share the same API
+- 🌐 **Web-first architecture** — full-featured Next.js web application with Node.js backend APIs
 - 💳 **Flexible billing** — monthly/yearly subscriptions *and* one-time credit top-ups, powered by Razorpay
 - ⚡ **Priority queue** — Studio and Pro subscribers jump the queue automatically via BullMQ priorities
 - 🔒 **Secure by default** — Firebase Auth tokens verified server-side on every tRPC request; Razorpay webhooks verified with HMAC-SHA256
@@ -107,9 +108,9 @@ The public-facing landing page is styled after OpenArt's suite home — a dark, 
 - **CTA strip** — full-width call-to-action with primary and secondary buttons.
 - **Footer** — links to Privacy, Terms, and API Docs.
 
-| Web App — Suite Home | Mobile App — Gallery |
-|:---:|:---:|
-| *(screenshot: dark suite home with hero banners and tool grid)* | *(screenshot placeholder)* |
+| Web App — Suite Home |
+|:---:|
+| *(screenshot: dark suite home with hero banners and tool grid)* |
 
 **Generation flow (30-second walkthrough):**
 
@@ -129,8 +130,8 @@ Type a prompt → Select model & settings → Hit Generate
 - Manage character consistency across generations
 - Browse their video gallery with infinite scroll and status filtering
 - Subscribe to tiered plans or buy one-time credit packs (via Razorpay)
-- Access everything from both a **Next.js web app** and a native **Expo/React Native mobile app**
-- Watch completed videos inline on web and in a full-screen player on mobile
+- Access everything from the **Next.js web application**
+- Watch completed videos inline on web
 
 ---
 
@@ -139,8 +140,8 @@ Type a prompt → Select model & settings → Hit Generate
 | Layer | Technology |
 |---|---|
 | **Monorepo** | [Turborepo](https://turbo.build/) 2 + npm workspaces |
-| **Web App** | [Next.js](https://nextjs.org/) 14 (App Router) |
-| **Mobile App** | [Expo](https://expo.dev/) 52 / React Native 0.76 |
+| **Web App** | [Next.js](https://nextjs.org/) 16 (App Router) |
+| **Backend Runtime** | Node.js 20 + Next.js server runtime |
 | **Language** | TypeScript 5.3 (strict, across all packages) |
 | **API** | [tRPC](https://trpc.io/) v11 + [TanStack Query](https://tanstack.com/query) v5 |
 | **Auth** | [Firebase Auth](https://firebase.google.com/) (email/password) |
@@ -153,6 +154,12 @@ Type a prompt → Select model & settings → Hit Generate
 | **Forms** | [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/) |
 | **Animations** | [Framer Motion](https://www.framer.com/motion/) 11 |
 | **State** | [Zustand](https://zustand-demo.pmnd.rs/) 4 |
+
+---
+
+## API Reference
+
+Complete API documentation is available in [`API.md`](./API.md).
 
 ---
 
@@ -1327,4 +1334,3 @@ VideoForge is built on the shoulders of giants:
 ## License
 
 MIT © VideoForge — see [LICENSE](LICENSE) for details.
-
