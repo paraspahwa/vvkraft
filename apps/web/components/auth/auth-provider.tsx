@@ -7,7 +7,7 @@ interface AuthUser {
   id: string;
   email: string;
   name: string | null;
-  image: string | null;
+  image?: string | null | undefined;
 }
 
 interface AuthContextValue {
