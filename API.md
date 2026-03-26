@@ -4,20 +4,16 @@ This document contains the current API surface for the **web-only VideoForge pla
 
 - Frontend: Next.js (App Router)
 - Backend: Node.js (Next.js API routes + tRPC)
-- Auth: Firebase bearer token (for protected/admin procedures)
+- Auth: Better Auth session cookie (for protected/admin procedures)
 - Base tRPC endpoint: `/api/trpc`
 
 ---
 
 ## 1) Authentication
 
-Protected and admin procedures require a Firebase ID token:
+Protected and admin procedures require an active Better Auth session (cookie-based):
 
-```http
-Authorization: Bearer <firebase_id_token>
-```
-
-- Missing/invalid token: unauthorized error
+- Missing/invalid session: unauthorized error
 - Admin routes additionally require a studio/admin-capable account (enforced in server middleware)
 
 ---

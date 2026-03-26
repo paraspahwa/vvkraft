@@ -526,9 +526,9 @@ Audio Credits = ceil(Base_Credits × AUDIO_SURCHARGE_MULTIPLIER)  // only if aud
 
 | Service | Purpose | Estimated Monthly Cost |
 |---------|---------|---|
-| **Firebase Authentication** | User sign-in & session management | Free up to 10k MAU, then $0.0055/MAU |
-| **Firestore** | User profiles, jobs, transactions, credit ledger | Free tier: 1 GB, 50k reads/day; then $0.06/GB + $0.06/100k reads |
-| **Cloudflare R2** | Video file storage | $0.015/GB stored · $0.01/10k GET · Free egress |
+| **Better Auth** | User sign-in & session management | Free (self-hosted npm library) |
+| **Supabase PostgreSQL** | User profiles, jobs, transactions, credit ledger | Free tier: 500 MB DB, 5 GB storage; then $25/mo (Pro plan) |
+| **Backblaze B2** | Video file storage | $0.006/GB stored · $0.01/GB download · Free egress within CDN |
 | **Redis / BullMQ** | Job queue | Self-hosted: server cost; Upstash: ~$1/100k commands |
 | **Vercel / Hosting** | Next.js deployment | $20–$150/mo depending on scale |
 
@@ -583,7 +583,7 @@ Credits are **currency-neutral** — 1 credit has the same purchasing power rega
 
 > **Source:** `apps/web/lib/db.ts`, `apps/web/app/api/webhooks/fal/route.ts`
 
-Every credit movement is recorded in the Firestore `creditTransactions` collection:
+Every credit movement is recorded in the Supabase `credit_transactions` table:
 
 | Field | Values |
 |---|---|
@@ -690,7 +690,7 @@ Every credit movement is recorded in the Firestore `creditTransactions` collecti
 | Cost | Amount |
 |---|:---:|
 | fal.ai API costs (~40% of credit revenue) | ~$7,800 |
-| Infrastructure (Firebase, R2, Redis, Hosting) | ~$2,000 |
+| Infrastructure (Supabase, B2, Redis, Hosting) | ~$2,000 |
 | Razorpay fees (~2.5%) | ~$500 |
 | **Monthly cost total** | **~$10,300** |
 | **Monthly profit** | **~$9,200** |
@@ -729,17 +729,18 @@ RAZORPAY_PLAN_STUDIO_YEARLY_INR=plan_xxxxx
 FAL_KEY=fal_xxxxx
 FAL_WEBHOOK_SECRET=xxxxx
 
-# Firebase — auth + database
-FIREBASE_ADMIN_PROJECT_ID=xxxxx
-FIREBASE_ADMIN_CLIENT_EMAIL=xxxxx
-FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
+# Better Auth — authentication
+BETTER_AUTH_SECRET=xxxxx
+BETTER_AUTH_URL=https://yourdomain.com
 
-# Cloudflare R2 — object storage
-R2_ACCOUNT_ID=xxxxx
-R2_ACCESS_KEY_ID=xxxxx
-R2_SECRET_ACCESS_KEY=xxxxx
-R2_BUCKET_NAME=videoforge
-R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+# Supabase — database
+DATABASE_URL=postgresql://xxxxx
+
+# Backblaze B2 — object storage
+B2_APPLICATION_KEY_ID=xxxxx
+B2_APPLICATION_KEY=xxxxx
+B2_BUCKET_NAME=videoforge
+B2_PUBLIC_URL=https://f000.backblazeb2.com/file/videoforge
 
 # Redis — job queue
 REDIS_URL=redis://localhost:6379
@@ -758,6 +759,6 @@ REDIS_URL=redis://localhost:6379
 | `apps/web/server/routers/upscaler.ts` | `UPSCALE_CREDIT_COST` (standard=10, real-esrgan=25) |
 | `apps/web/app/api/webhooks/razorpay/route.ts` | Subscription renewal webhook → credits added |
 | `apps/web/app/api/webhooks/fal/route.ts` | Generation/upscale webhook → refund on failure |
-| `apps/web/lib/db.ts` | `addCredits`, `deductCredits`, `creditTransactions` Firestore collection |
+| `apps/web/lib/db.ts` | `addCredits`, `deductCredits`, `credit_transactions` Supabase table |
 | `apps/web/lib/queue.ts` | BullMQ setup — queue priority by tier |
 | `.env.example` | All required environment variables (now includes India plan IDs) |
