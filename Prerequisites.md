@@ -366,18 +366,35 @@ All are available on free or pay-as-you-go plans.
 
 | Service | What it provides | Sign-up URL |
 |---------|----------------|-------------|
-| **Firebase** | Authentication (email/password) + Firestore database | <https://console.firebase.google.com/> |
+| **Supabase** | PostgreSQL database (hosted) | <https://supabase.com/> |
 | **Fal.ai** | AI video generation (Kling, WAN, Longcat, LTXV, Krea WAN, Pixverse, Seedance, HunyuanVideo, and 30+ more models) | <https://fal.ai/> |
 | **Razorpay** | Subscription billing and one-time credit purchases | <https://razorpay.com/> |
-| **Cloudflare R2** | Object storage for generated videos | <https://dash.cloudflare.com/> → R2 |
+| **Backblaze B2** | Object storage for generated videos | <https://www.backblaze.com/b2/cloud-storage.html> |
+| **RunPod** | GPU worker endpoints for heavy inference | <https://runpod.io/> |
 
-### Firebase setup
+### Better Auth setup
 
-1. Create a new Firebase project.
-2. Enable **Authentication** → **Email/Password** sign-in method.
-3. Enable **Firestore Database** (start in test mode, then lock down rules before production).
-4. Go to **Project settings** → **General** → add a **Web app** to get the client credentials.
-5. Go to **Project settings** → **Service accounts** → **Generate new private key** to get the Admin SDK credentials.
+Better Auth (`better-auth`) is an npm library — no external account is needed. You only need to set a secret:
+
+1. Generate a strong secret:
+   ```bash
+   openssl rand -hex 32
+   ```
+2. Copy the output into `BETTER_AUTH_SECRET` in your `.env.local`.
+3. If you want Google OAuth, create a project in the [Google Cloud Console](https://console.cloud.google.com/), enable the **Google+ API**, create OAuth 2.0 credentials, and copy the client ID/secret into `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+### Supabase setup
+
+1. Create a project at <https://supabase.com/>.
+2. Go to **Project Settings** → **API**:
+   - Copy the **Project URL** into `NEXT_PUBLIC_SUPABASE_URL`.
+   - Copy the **service_role** secret into `SUPABASE_SERVICE_ROLE_KEY`.
+3. Go to **Project Settings** → **Database** → **Connection string** (URI mode):
+   - Replace the placeholder password and copy the full string into `DATABASE_URL`.
+4. Run the schema file to create all tables:
+   ```bash
+   psql "$DATABASE_URL" -f supabase/schema.sql
+   ```
 
 ### Fal.ai setup
 
@@ -393,12 +410,17 @@ All are available on free or pay-as-you-go plans.
 4. Copy each plan ID into the corresponding `RAZORPAY_PLAN_*` env var.
 5. Set up a webhook endpoint (`https://<your-domain>/api/webhooks/razorpay`) and copy the signing secret into `RAZORPAY_WEBHOOK_SECRET`.
 
-### Cloudflare R2 setup
+### Backblaze B2 setup
 
-1. In the Cloudflare dashboard go to **R2** → **Create bucket**.
-2. Go to **R2** → **Manage R2 API tokens** → create a token with **Object Read & Write** on the bucket.
-3. Copy the Account ID, Access Key ID, and Secret Access Key into the corresponding `R2_*` env vars.
-4. Enable **public access** on the bucket (or use a custom domain) and copy the public URL into `R2_PUBLIC_URL`.
+1. Create an account at <https://www.backblaze.com/b2/cloud-storage.html>.
+2. Go to **B2 Cloud Storage** → **Buckets** → **Create a Bucket**. Note the bucket name and region.
+3. Go to **Account** → **Application Keys** → **Add a New Application Key**. Give it Read/Write access to your bucket.
+4. Copy the values into your `.env.local`:
+   - `B2_REGION` — the bucket region (e.g. `us-west-004`)
+   - `B2_APPLICATION_KEY_ID` — the key ID
+   - `B2_APPLICATION_KEY` — the application key
+   - `B2_BUCKET_NAME` — your bucket name (default: `videoforge`)
+   - `B2_PUBLIC_URL` — the public-facing URL for the bucket (e.g. `https://f004.backblazeb2.com/file/your-bucket`)
 
 ---
 
@@ -428,23 +450,21 @@ cp apps/web/.env.example apps/web/.env.local
 Open `apps/web/.env.local` and populate every variable:
 
 ```dotenv
-# ── Firebase (Client SDK) ─────────────────────────────────────────────────────
-NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
+# ── Better Auth ───────────────────────────────────────────────────────────────
+BETTER_AUTH_SECRET=replace_with_strong_random_secret   # openssl rand -hex 32
 
-# ── Firebase Admin (Server SDK) ───────────────────────────────────────────────
-FIREBASE_ADMIN_PROJECT_ID=your-project-id
-FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
-# Paste the private key exactly as it appears in the downloaded JSON, with \n for newlines
-FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
+# ── Google OAuth (optional, for social login) ─────────────────────────────────
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# ── Supabase ──────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD_HERE@db.your-project.supabase.co:5432/postgres
 
 # ── Fal.ai ────────────────────────────────────────────────────────────────────
-FAL_KEY=your-fal-api-key
-FAL_WEBHOOK_SECRET=your-fal-webhook-secret
+FAL_KEY=fal_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FAL_WEBHOOK_SECRET=replace_with_strong_random_secret
 
 # ── Razorpay ──────────────────────────────────────────────────────────────────
 RAZORPAY_KEY_ID=rzp_test_...
@@ -456,17 +476,37 @@ RAZORPAY_PLAN_PRO_MONTHLY=plan_...
 RAZORPAY_PLAN_PRO_YEARLY=plan_...
 RAZORPAY_PLAN_STUDIO_MONTHLY=plan_...
 RAZORPAY_PLAN_STUDIO_YEARLY=plan_...
+RAZORPAY_PLAN_CREATOR_MONTHLY_INR=plan_...
+RAZORPAY_PLAN_CREATOR_YEARLY_INR=plan_...
+RAZORPAY_PLAN_PRO_MONTHLY_INR=plan_...
+RAZORPAY_PLAN_PRO_YEARLY_INR=plan_...
+RAZORPAY_PLAN_STUDIO_MONTHLY_INR=plan_...
+RAZORPAY_PLAN_STUDIO_YEARLY_INR=plan_...
 
 # ── Redis ─────────────────────────────────────────────────────────────────────
 REDIS_URL=redis://localhost:6379
 # For Upstash: redis://default:<password>@<host>.upstash.io:6379
 
-# ── Cloudflare R2 ─────────────────────────────────────────────────────────────
-R2_ACCOUNT_ID=your-cloudflare-account-id
-R2_ACCESS_KEY_ID=your-r2-access-key-id
-R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
-R2_BUCKET_NAME=videoforge
-R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+# ── Celery (GPU worker) ───────────────────────────────────────────────────────
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+
+# ── Backblaze B2 ──────────────────────────────────────────────────────────────
+B2_REGION=us-west-004
+B2_APPLICATION_KEY_ID=
+B2_APPLICATION_KEY=
+B2_BUCKET_NAME=videoforge
+B2_PUBLIC_URL=
+
+# ── RunPod ────────────────────────────────────────────────────────────────────
+RUNPOD_API_KEY=
+RUNPOD_ENDPOINT_3060=https://api.runpod.ai/v2/your-3060-endpoint
+RUNPOD_ENDPOINT_4090=https://api.runpod.ai/v2/your-4090-endpoint
+RUNPOD_ENDPOINT_A100=https://api.runpod.ai/v2/your-a100-endpoint
+
+# ── Webhooks ──────────────────────────────────────────────────────────────────
+WEBHOOK_BASE_URL=http://localhost:3000
+WEBHOOK_SECRET=replace_with_strong_random_secret
 
 # ── App ───────────────────────────────────────────────────────────────────────
 NEXT_PUBLIC_APP_URL=http://localhost:3000
