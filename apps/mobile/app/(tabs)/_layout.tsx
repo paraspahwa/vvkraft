@@ -36,6 +36,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="editor"
+        options={{
+          title: "Editor",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cut" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="billing"
         options={{
           title: "Billing",

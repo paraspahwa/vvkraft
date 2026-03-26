@@ -84,6 +84,7 @@
 
 - 🎬 **40+ state-of-the-art models** — Kling v3 Pro, Kling v2.6 Pro, Kling O3, WAN 2.2, WAN 2.6, Longcat, LTXV, Krea WAN, Pixverse v5, Seedance, HunyuanVideo, and more — all in one platform
 - 📹 **Long-form video generation** — generate 30-second, 1-minute, and 2-minute AI videos using models purpose-built for continuous long-form output (Creator tier and above)
+- ✂️ **Video Editor** *(paid plans only)* — full-featured timeline editor: trim clips, merge AI-generated and uploaded videos, add text overlays with custom fonts/positions/colours, layer background audio, then export a polished MP4. Available on web and mobile.
 - 🧑‍🎨 **Character consistency** — upload a reference image and maintain your character across unlimited videos
 - 📱 **Web + Mobile** — full-featured Next.js web app and native Expo/React Native mobile app share the same API
 - 💳 **Flexible billing** — monthly/yearly subscriptions *and* one-time credit top-ups, powered by Razorpay
@@ -292,6 +293,7 @@ videoforge/
 | Watermark | ✅ | ❌ | ❌ | ❌ |
 | Character consistency | ❌ | ✅ | ✅ | ✅ |
 | Motion control | ❌ | ❌ | ✅ | ✅ |
+| **Video Editor** | ❌ | ✅ | ✅ | ✅ |
 | Priority queue | ❌ | ❌ | ✅ | ✅ (fastest) |
 | GPU | RTX 3060 | RTX 4090 | A100 | A100 |
 | Draft preview | ✅ | ✅ | ✅ | ✅ |
@@ -812,10 +814,18 @@ appRouter
 │   ├── createCreditCheckout        — create Razorpay order
 │   ├── verifyCreditPayment         — HMAC verify + add credits
 │   └── cancelSubscription          — cancel active subscription
-└── character
-    ├── list            — user's characters
-    ├── create          — create character with reference image
-    └── delete          — delete + clean up R2 assets
+├── character
+│   ├── list            — user's characters
+│   ├── create          — create character with reference image
+│   └── delete          — delete + clean up R2 assets
+└── videoEditor  [paid: creator / pro / studio only]
+    ├── create          — new project (blank, auto-named)
+    ├── getById         — load a project with all clips + overlays
+    ├── list            — paginated project list (newest first)
+    ├── save            — persist full edit state (clips, overlays, audio)
+    ├── getUploadUrl    — presigned R2 PUT URL for user-uploaded clips
+    ├── export          — trigger export; returns signed download URL when ready
+    └── delete          — delete a project from Firestore
 ```
 
 Authentication uses **Firebase ID tokens** passed as `Authorization: Bearer <token>` headers. The tRPC context verifies the token via Firebase Admin SDK and loads the user from Firestore on every request.
@@ -936,6 +946,76 @@ Jobs are enqueued with **BullMQ priority** based on subscription tier:
 
 ---
 
+### Video Editor
+
+The Video Editor (`/editor`) is a paid-only feature (Creator, Pro, and Studio plans) that lets users combine AI-generated videos with their own uploaded footage into a polished final cut.
+
+#### Architecture
+
+```
+Client (Web / Mobile)
+  │
+  ├── GET  videoEditor.list          — load project list from Firestore `videoEditorProjects`
+  ├── POST videoEditor.create        — create new project document
+  ├── POST videoEditor.getUploadUrl  — get presigned R2 PUT URL for a new clip
+  │         └── Client PUTs video directly to R2 (large file, no proxy)
+  ├── POST videoEditor.save          — persist clips[], textOverlays[], audio settings
+  └── POST videoEditor.export        — mark project "exporting"; background worker renders
+            └── Background FFmpeg worker
+                  ├── concat clips (respecting trimStart / trimEnd)
+                  ├── burn text overlays at correct timestamps
+                  ├── mix background audio at configured volume
+                  └── upload output to R2 → update project status → "exported"
+```
+
+#### Data Model (`videoEditorProjects` Firestore collection)
+
+| Field | Type | Description |
+|---|---|---|
+| `userId` | string | Owner |
+| `name` | string | Project display name |
+| `clips` | `VideoEditorClip[]` | Ordered list of clips with trim points |
+| `textOverlays` | `VideoEditorTextOverlay[]` | Timed text overlays |
+| `backgroundAudioUrl` | string \| null | URL of the background audio track |
+| `backgroundAudioVolume` | number (0–1) | Mix volume |
+| `status` | `draft \| exporting \| exported \| failed` | Project lifecycle |
+| `exportedVideoUrl` | string \| null | Final rendered video URL |
+| `exportedR2Key` | string \| null | R2 key for the export |
+| `totalDurationSeconds` | number | Sum of trimmed clip durations |
+
+#### R2 Key Layout
+
+```
+editor/<userId>/<projectId>/<clipId>/input.mp4   ← user-uploaded clips
+editor/<userId>/<projectId>/export.mp4           ← rendered output
+```
+
+#### Web Editor Features
+
+- **Clip timeline** — horizontal scroll view with drag-to-reorder (left/right arrows)
+- **Clip sources** — add from AI gallery or upload own MP4/WebM/MOV (direct R2 PUT, up to 2 GB)
+- **Trim panel** — per-clip start/end sliders, live effective-duration display
+- **Text overlays** — add/edit/delete overlays; configure text, start/end time, position (top/center/bottom), font size, colour
+- **Background audio** — paste any MP3/AAC URL; set volume 0–100%
+- **Preview player** — inline `<video>` that sequences through clips; overlay preview rendered on canvas
+- **Auto-save** — save button persists to Firestore; project state survives refresh
+- **Export** — triggers background render; download button appears when export is ready
+
+#### Mobile Editor Features
+
+- **Project list** with create/delete
+- **Tabs**: Clips · Text · Audio
+- **Clips tab**: current timeline clips + gallery picker
+- **Text tab**: add/edit/delete text overlays
+- **Audio tab**: guidance text (full audio controls in web editor)
+- **Export** — triggers server-side export, shows alert when queued
+
+#### Tier Gating
+
+Free-tier users see a locked screen with a feature list and "Upgrade to Unlock Editor" CTA. All `videoEditor.*` tRPC procedures throw `FORBIDDEN` for `tier === "free"`.
+
+---
+
 ## India Pricing
 
 VideoForge is designed primarily for the Indian market. Pricing is kept intentionally low and opaque to maximise conversions while protecting margin through hidden quality controls.
@@ -982,13 +1062,14 @@ These are applied silently — users are never told about them:
 - [x] **Generate page** — prompt form, negative prompt, duration, aspect ratio, resolution, model selection from full catalog, real-time status polling
 - [x] **Long Video page** (`/generate/long-video`) — 30s / 60s / 120s duration presets, long-form model picker, tier-aware availability
 - [x] **Gallery page** — infinite scroll, status filter (all/completed/processing/failed), load-more pagination
+- [x] **Video Editor page** (`/editor`) — paid-only (Creator / Pro / Studio); multi-clip timeline; trim controls; text overlays; background audio; gallery picker; own-video upload via presigned R2 URL; auto-save to Firestore; export to MP4
 - [x] **Pricing page** — 4 plan cards with monthly/yearly toggle, save-20% badge, 4 credit top-up packs, FAQ
 - [x] **Settings page** — profile update form, current plan display, cancel subscription button
-- [x] **tRPC API** — generation, user, billing, character routers (fully type-safe)
+- [x] **tRPC API** — generation, user, billing, character, videoEditor routers (fully type-safe)
 - [x] **Firebase integration** — client SDK (auth) + Admin SDK (Firestore, verify tokens)
 - [x] **Fal.ai webhook** — `IN_PROGRESS` → `COMPLETED` → R2 upload → `FAILED` + credit refund
 - [x] **Razorpay billing** — subscription checkout, one-time credit purchase, HMAC verification, webhook handler
-- [x] **Cloudflare R2** — upload, download, delete, presigned URL helpers
+- [x] **Cloudflare R2** — upload, download, delete, presigned URL helpers (including editor input/output keys)
 - [x] **Redis + BullMQ** — queue definitions, job enqueue with tier priority
 - [x] **Model router** — tier-aware model selection, resolution/duration clamping, credit cost calculation; supports 40+ models across Longcat, LTXV, WAN, Kling, Pixverse, Seedance, HeyGen, Cosmos, and more
 - [x] **Razorpay client utility** — lazy script loader (`lib/razorpay-client.ts`)
@@ -999,6 +1080,7 @@ These are applied silently — users are never told about them:
 - [x] **Generate screen** — prompt input, duration picker, aspect ratio selector, real-time generation status
 - [x] **Gallery screen** — 2-column grid, infinite scroll, pull-to-refresh, thumbnail display, status dots
 - [x] **Profile screen** — avatar, tier badge, stats grid (credits, total, this-month, max duration), plan features, sign out
+- [x] **Video Editor screen** — paid-only gate with upgrade CTA; project list; per-project editor with clips/text/audio tabs; gallery picker; remove clips; export; auto-save
 
 ---
 
@@ -1051,6 +1133,7 @@ These are applied silently — users are never told about them:
 | **Admin middleware** | `apps/web/server/trpc.ts` | `adminProcedure` — enforces `studio` tier for admin-only routes. |
 | **Shared types** | `packages/shared/src/types/index.ts` | `VideoTemplate`, `ScriptScene`, `GeneratedScript`, `ExportTarget`, `ExportJob`, `CommunityVideo`, `RemixRequest`, `AdminUserMetrics`, `PlatformMetrics` |
 | **Shared schemas** | `packages/shared/src/schemas/index.ts` | `templateGenerateSchema`, `autoScriptRequestSchema`, `exportRequestSchema`, `communityRemixSchema`, `templateCategorySchema`, `exportTargetSchema` |
+| **Video Editor (Web + Mobile)** | `videoEditor` tRPC router · `apps/web/app/editor/` · `apps/mobile/app/(tabs)/editor.tsx` | Full-featured video editor for paid users (Creator / Pro / Studio). Features: multi-clip timeline, per-clip trim controls, text overlays with position/font/colour, background audio mixing, gallery picker (add AI-generated videos directly), upload own videos (presigned R2 PUT), auto-save project state to Firestore, export to MP4 via background queue. Free-tier users see a feature list + upgrade CTA. Both web and mobile surfaces implemented. New Firestore collection: `videoEditorProjects`. |
 
 ---
 
@@ -1064,6 +1147,7 @@ These are applied silently — users are never told about them:
 |:---:|---|---|
 | 🔴 High | **Google / Social OAuth** | Wire up Firebase Google, Apple, GitHub providers |
 | 🔴 High | **Rate limiting** | IP-based + per-user middleware on tRPC & webhook routes |
+| 🟠 Med | **Video Editor — FFmpeg render worker** | Background worker that processes `videoEditorProjects` in "exporting" state: concat clips, apply trim, burn text overlays, mix audio, output MP4 to R2 |
 | 🟠 Med | **Template UI page** | `/templates` page with category filter, preview cards, and 1-click launch |
 | 🟠 Med | **Auto-Script UI** | `/generate/script` page with intent input, scene preview, and "Generate from Script" button |
 | 🟠 Med | **Price-Control Dashboard UI** | `/admin/dashboard` page with metrics table, per-user drilldown, and downgrade controls |

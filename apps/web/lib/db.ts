@@ -1,5 +1,5 @@
 import { adminDb } from "./firebase-admin";
-import type { User, Generation, Character, CreditTransaction, SubscriptionTier, VideoUpscaleJob } from "@videoforge/shared";
+import type { User, Generation, Character, CreditTransaction, SubscriptionTier, VideoUpscaleJob, VideoEditorProject } from "@videoforge/shared";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 // Collection helpers
@@ -8,6 +8,7 @@ const generationsCol = () => adminDb.collection("generations");
 const charactersCol = () => adminDb.collection("characters");
 const transactionsCol = () => adminDb.collection("creditTransactions");
 const upscaleJobsCol = () => adminDb.collection("videoUpscaleJobs");
+const editorProjectsCol = () => adminDb.collection("videoEditorProjects");
 
 function fromTimestamp(ts: Timestamp): Date {
   return ts.toDate();
@@ -289,4 +290,58 @@ export async function getUserUpscaleJobs(
 
   const snapshot = await query.get();
   return snapshot.docs.map((doc) => docToUpscaleJob(doc.data() as FirestoreDocData, doc.id));
+}
+
+// ── Video Editor Project operations ──────────────────────────────────────────
+
+function docToEditorProject(data: FirestoreDocData, id: string): VideoEditorProject {
+  return {
+    ...data,
+    id,
+    createdAt: fromTimestamp(data.createdAt),
+    updatedAt: fromTimestamp(data.updatedAt),
+  } as VideoEditorProject;
+}
+
+export async function createEditorProject(
+  data: Omit<VideoEditorProject, "id" | "createdAt" | "updatedAt">
+): Promise<VideoEditorProject> {
+  const now = Timestamp.now();
+  const ref = editorProjectsCol().doc();
+  const doc = { ...data, createdAt: now, updatedAt: now };
+  await ref.set(doc);
+  return { ...data, id: ref.id, createdAt: now.toDate(), updatedAt: now.toDate() };
+}
+
+export async function getEditorProjectById(projectId: string): Promise<VideoEditorProject | null> {
+  const doc = await editorProjectsCol().doc(projectId).get();
+  if (!doc.exists) return null;
+  return docToEditorProject(doc.data() as FirestoreDocData, doc.id);
+}
+
+export async function updateEditorProject(
+  projectId: string,
+  data: Partial<Omit<VideoEditorProject, "id" | "createdAt">>
+): Promise<void> {
+  await editorProjectsCol().doc(projectId).update({
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
+}
+
+export async function getUserEditorProjects(
+  userId: string,
+  limit = 20
+): Promise<VideoEditorProject[]> {
+  const snapshot = await editorProjectsCol()
+    .where("userId", "==", userId)
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map((doc) => docToEditorProject(doc.data() as FirestoreDocData, doc.id));
+}
+
+export async function deleteEditorProject(projectId: string): Promise<void> {
+  await editorProjectsCol().doc(projectId).delete();
 }

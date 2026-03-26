@@ -9,6 +9,7 @@ import { autoScriptRouter } from "./autoScript";
 import { adminRouter } from "./admin";
 import { communityRouter } from "./community";
 import { exportRouter } from "./export";
+import { videoEditorRouter } from "./videoEditor";
 
 export const appRouter = router({
   generation: generationRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   admin: adminRouter,
   community: communityRouter,
   export: exportRouter,
+  videoEditor: videoEditorRouter,
 });
 
 export type AppRouter = typeof appRouter;

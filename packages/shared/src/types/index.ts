@@ -304,6 +304,86 @@ export interface ExportJob {
   updatedAt: Date;
 }
 
+// ── Video Editor ──────────────────────────────────────────────────────────────
+
+/** Status of a video editor project export */
+export type VideoEditorProjectStatus = "draft" | "exporting" | "exported" | "failed";
+
+/** Source type for a clip in the editor */
+export type VideoEditorClipSource = "generated" | "uploaded";
+
+/** A single clip on the editor timeline */
+export interface VideoEditorClip {
+  id: string;
+  /** Where the video came from */
+  sourceType: VideoEditorClipSource;
+  /** Public URL of the source video */
+  sourceUrl: string;
+  /** Generation ID when sourceType === "generated" */
+  generationId?: string;
+  /** R2 key of the uploaded file when sourceType === "uploaded" */
+  uploadedR2Key?: string;
+  /** Total duration of the source video in seconds */
+  durationSeconds: number;
+  /** Trim start point in seconds (inclusive) */
+  trimStart: number;
+  /**
+   * Trim end point in seconds (inclusive).
+   * A value of 0 is a sentinel meaning "use the full source duration".
+   * Any positive value is treated as the actual end time in seconds.
+   */
+  trimEnd: number;
+  /** Position on the timeline (determines playback order) */
+  order: number;
+  /** Optional human-readable label */
+  label?: string;
+}
+
+/** Text overlay drawn on top of the video */
+export interface VideoEditorTextOverlay {
+  id: string;
+  text: string;
+  /** Second (relative to the full edited timeline) when the overlay appears */
+  startTime: number;
+  /** Second when the overlay disappears */
+  endTime: number;
+  /** Vertical position on screen */
+  position: "top" | "center" | "bottom";
+  /** Font size in pixels */
+  fontSize: number;
+  /** CSS-compatible colour string e.g. "#FFFFFF" */
+  color: string;
+  /** Background colour (semi-transparent pill) */
+  backgroundColor: string;
+}
+
+/** A complete video editor project */
+export interface VideoEditorProject {
+  id: string;
+  userId: string;
+  name: string;
+  /** Ordered list of clips on the timeline */
+  clips: VideoEditorClip[];
+  /** Text overlays keyed by overlay ID */
+  textOverlays: VideoEditorTextOverlay[];
+  /** Optional background audio URL */
+  backgroundAudioUrl: string | null;
+  /** Background audio volume multiplier 0–1 */
+  backgroundAudioVolume: number;
+  /** Current project status */
+  status: VideoEditorProjectStatus;
+  /** Public URL of the final exported/rendered video */
+  exportedVideoUrl: string | null;
+  /** R2 key of the final exported video */
+  exportedR2Key: string | null;
+  /** Human-readable error on export failure */
+  errorMessage: string | null;
+  /** Total timeline duration in seconds (sum of trimmed clip durations) */
+  totalDurationSeconds: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ── Community ─────────────────────────────────────────────────────────────────
 
 /** A video surfaced in the community trending feed */
