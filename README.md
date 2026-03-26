@@ -207,8 +207,8 @@ videoforge/
 │   │   ├── lib/
 │   │   │   ├── db.ts                 # Supabase PostgreSQL operations
 │   │   │   ├── fal.ts                # Fal.ai client + types
-│   │   │   ├── firebase.ts           # Firebase client SDK (stub only — replaced by Better Auth)
-│   │   │   ├── firebase-admin.ts     # Firebase Admin SDK (legacy — no longer used for auth)
+│   │   │   ├── firebase.ts           # Firebase client SDK (stub only — replaced by Better Auth; kept for import compatibility, safe to delete)
+│   │   │   ├── firebase-admin.ts     # Firebase Admin SDK (legacy — no longer used for auth; safe to delete)
 │   │   │   ├── auth.ts               # Better Auth server config
 │   │   │   ├── auth-client.ts        # Better Auth client
 │   │   │   ├── auth-context.ts       # Better Auth React context
