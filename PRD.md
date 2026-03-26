@@ -382,7 +382,7 @@ Deep Linking Expo Linking - shared video opens in app
 │ ▼ │
 │ ┌─────────────────────────────────────────────────────────────┐ │
 │ │ STORAGE & CDN │ │
-│ │ Backblaze B2 + Cloudflare Stream (adaptive)               │ │
+│ │ Backblaze B2 (public URL delivery)                        │ │
 │ └─────────────────────────────────────────────────────────────┘ │
 │ │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -427,7 +427,7 @@ Storage Backblaze B2 Video file storage
 ```
 Table 16 – continued
 Layer Technology Purpose
-CDN Cloudflare Stream Adaptive video streaming
+CDN Backblaze B2 Public URL Video delivery
 ```
 **5.2.4 AI/ML Integration**
 
@@ -709,7 +709,7 @@ Video Playback Start <2s expo-video metrics
 - Storage lifecycle: Auto-delete videos after 30 days (user notified)
 
 
-- CDN optimization: Cloudflare Argo for faster global delivery
+- CDN optimization: Cloudflare CDN integration for faster global delivery (future enhancement)
 
 ## 7. Development Phases
 

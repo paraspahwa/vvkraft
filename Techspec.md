@@ -148,7 +148,7 @@
 
 ### Storage Backblaze B2 - Video/object storage
 
-### CDN Cloudflare Stream - Video delivery
+### CDN Backblaze B2 Public URL - Video delivery (Cloudflare Stream: future enhancement)
 
 ### AI API Fal.ai SDK Latest Video generation
 
