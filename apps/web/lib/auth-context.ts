@@ -1,4 +1,4 @@
-import { adminAuth } from "./firebase-admin";
+import { auth } from "./auth";
 import { getUserById, createUser } from "./db";
 import type { User } from "@videoforge/shared";
 
@@ -8,40 +8,41 @@ interface AuthContext {
 }
 
 /**
- * Resolves a Firebase ID token to a user context, auto-creating the Firestore
- * user document on first login if it doesn't already exist.
+ * Resolves a Better Auth session to a user context, auto-creating the
+ * database user record on first login if it doesn't already exist.
  */
-export async function getOrCreateUserFromToken(
-  authHeader: string | null | undefined
+export async function getOrCreateUserFromSession(
+  requestHeaders: Headers
 ): Promise<AuthContext> {
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { user: null, userId: null };
-  }
-
-  const token = authHeader.slice(7);
   try {
-    const decoded = await adminAuth.verifyIdToken(token);
-    let user = await getUserById(decoded.uid);
+    const session = await auth.api.getSession({
+      headers: requestHeaders,
+    });
+
+    if (!session?.user) {
+      return { user: null, userId: null };
+    }
+
+    const userId = session.user.id;
+    let user = await getUserById(userId);
 
     if (!user) {
       try {
-        user = await createUser(decoded.uid, {
-          email: decoded.email ?? "",
-          displayName: decoded.name ?? null,
-          photoURL: decoded.picture ?? null,
+        user = await createUser(userId, {
+          email: session.user.email ?? "",
+          displayName: session.user.name ?? null,
+          photoURL: session.user.image ?? null,
         });
       } catch (createErr) {
         console.error(
-          `[auth-context] Failed to auto-create Firestore user document for uid=${decoded.uid}:`,
+          `[auth-context] Failed to auto-create user record for id=${userId}:`,
           createErr
         );
-        // User is authenticated but document creation failed; protected procedures
-        // will still reject them until the document is created successfully.
-        return { user: null, userId: decoded.uid };
+        return { user: null, userId };
       }
     }
 
-    return { user, userId: decoded.uid };
+    return { user, userId };
   } catch {
     return { user: null, userId: null };
   }

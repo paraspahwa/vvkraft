@@ -1,17 +1,10 @@
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
+// Firebase Admin SDK has been replaced by Supabase + Better Auth.
+// This file is kept as a stub to prevent import errors during migration.
+// Database operations use Supabase (see lib/supabase.ts and lib/db.ts).
+// Authentication uses Better Auth (see lib/auth.ts).
 
-if (getApps().length === 0) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      // Newlines must be handled when passed as env var
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
+import { supabase } from "./supabase";
 
-export const adminDb = getFirestore();
-export const adminAuth = getAuth();
+// Re-export supabase as adminDb for backward compatibility with routers
+// that haven't been fully migrated yet.
+export const adminDb = supabase;
