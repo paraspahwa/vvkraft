@@ -1118,9 +1118,9 @@ T2V ~$0.26/5sec 720p Yes ByteDance model
 | Tier | Watermark |
 |---|:---:|
 | Free | ✅ Applied at FFmpeg stitch step |
-| Starter (₹199) | ❌ |
-| Creator (₹499) | ❌ |
-| Pro (₹999) | ❌ |
+| Starter (₹399) | ❌ |
+| Creator (₹799) | ❌ |
+| Pro (₹1299) | ❌ |
 
 Watermark is enforced by the GPU worker (`cost_optimizer.py`) and cannot be bypassed client-side.
 

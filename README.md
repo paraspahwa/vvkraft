@@ -287,10 +287,10 @@ videoforge/
 ## Features & Subscription Tiers
 
 > **Plan name mapping:** India display names differ from internal tier identifiers.
-> `creator` tier = "Starter" (₹199) · `pro` tier = "Creator" (₹499) · `studio` tier = "Pro" (₹999).
+> `creator` tier = "Starter" (₹399) · `pro` tier = "Creator" (₹799) · `studio` tier = "Pro" (₹1299).
 > Global (USD) prices: Starter=$19/mo · Creator=$49/mo · Pro=$149/mo.
 
-| Feature | Free | Starter — India ₹199/mo | Creator — India ₹499/mo | Pro — India ₹999/mo |
+| Feature | Free | Starter — India ₹399/mo | Creator — India ₹799/mo | Pro — India ₹1299/mo |
 |---|:---:|:---:|:---:|:---:|
 | Videos / day | 3 | — | — | — |
 | Videos / month | — | 50 | 150 | 400 |
@@ -728,9 +728,9 @@ Hardware is assigned per subscription tier. Actual GPU assignments are hidden fr
 | Internal Tier | India Display Name | India Price | GPU | Queue Priority | Max Resolution |
 |---|---|:---:|---|:---:|---|
 | `free` | Free | ₹0 | **RTX 3060** | 10 (slowest) | 480p |
-| `creator` | **Starter** | ₹199/mo | **RTX 4090** | 7 | 720p |
-| `pro` | **Creator** | ₹499/mo | **A100** | 3 | 1080p |
-| `studio` | **Pro** | ₹999/mo | **A100** | 1 (fastest) | 1080p |
+| `creator` | **Starter** | ₹399/mo | **RTX 4090** | 7 | 720p |
+| `pro` | **Creator** | ₹799/mo | **A100** | 3 | 1080p |
+| `studio` | **Pro** | ₹1299/mo | **A100** | 1 (fastest) | 1080p |
 
 > RunPod endpoints: `RUNPOD_ENDPOINT_3060`, `RUNPOD_ENDPOINT_4090`, `RUNPOD_ENDPOINT_A100` in `.env`.
 
@@ -1031,9 +1031,9 @@ VideoForge is designed primarily for the Indian market. Pricing is kept intentio
 
 | Plan | Internal Tier | Price (INR/mo) | Videos/month | GPU |
 |---|---|:---:|:---:|---|
-| **Starter** | `creator` | ₹199 | 50 | RTX 4090 |
-| **Creator** | `pro` | ₹499 | 150 | A100 |
-| **Pro** | `studio` | ₹999 | 400 | A100 (priority) |
+| **Starter** | `creator` | ₹399 | 50 | RTX 4090 |
+| **Creator** | `pro` | ₹799 | 150 | A100 |
+| **Pro** | `studio` | ₹1299 | 400 | A100 (priority) |
 
 ### Hidden Controls (profit protection)
 
@@ -1042,9 +1042,9 @@ These are applied silently — users are never told about them:
 | Plan | Slower Queue | Lower Quality | Watermark |
 |---|:---:|:---:|:---:|
 | Free | ✅ (priority 10) | ✅ (480p, RTX 3060) | ✅ |
-| Starter (₹199) | slight (priority 7) | slight (720p max) | ❌ |
-| Creator (₹499) | ❌ | ❌ | ❌ |
-| Pro (₹999) | ❌ (priority queue) | ❌ (1080p, A100) | ❌ |
+| Starter (₹399) | slight (priority 7) | slight (720p max) | ❌ |
+| Creator (₹799) | ❌ | ❌ | ❌ |
+| Pro (₹1299) | ❌ (priority queue) | ❌ (1080p, A100) | ❌ |
 
 > The Dynamic Downgrade Engine adds additional quality caps when a user approaches their monthly cost ceiling, regardless of plan.
 

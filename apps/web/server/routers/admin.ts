@@ -25,9 +25,9 @@ const INR_TO_USD = 1 / 84; // 1 USD ≈ 84 INR
 /** Monthly subscription revenue (INR) per internal tier */
 const PLAN_REVENUE_INR: Record<SubscriptionTier, number> = {
   free: 0,
-  creator: 199,   // Starter
-  pro: 499,       // Creator
-  studio: 999,    // Pro
+  creator: 399,   // Starter
+  pro: 799,       // Creator
+  studio: 1299,   // Pro
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
