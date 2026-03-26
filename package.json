@@ -1,6 +1,7 @@
 {
   "name": "videoforge",
   "private": true,
+  "packageManager": "npm@11.9.0",
   "workspaces": ["apps/*", "packages/*", "packages/config/*"],
   "scripts": {
     "dev": "turbo dev",

@@ -16,6 +16,8 @@
 
 ## 1.1 High-Level System Design
 
+> **Update (web-only direction):** VideoForge is now positioned as a **web-only** platform with a **Next.js frontend and Node.js backend**. Mobile/Expo details in this draft are legacy notes.
+
 #### ┌─────────────────────────────────────────────────────────────────────────────┐
 
 #### │ CLIENT LAYER │
@@ -99,15 +101,13 @@
 
 ### Layer Technology Version Purpose
 
-### Web Framework Next.js 14.x App Router, SSR, API
+### Web Framework Next.js 16.x App Router, SSR, API
 
 ### routes
 
-### Mobile
+### Platform
 
-### Framework
-
-### Expo SDK 52.x React Native platform
+### Web-only (no mobile client)
 
 ### Language TypeScript 5.3 Type safety
 
@@ -134,7 +134,7 @@
 
 ### Layer Technology Version Purpose
 
-### Backend Next.js API Routes 14.x Serverless functions
+### Backend Next.js API Routes 16.x Serverless functions
 
 ### API Protocol tRPC 11.x Type-safe APIs
 
@@ -1847,5 +1847,4 @@ videoforge/
 - **Next Review Date:** 2026-04-22
 
 ### Contact: engineering@videoforge.ai
-
 
